@@ -1,0 +1,63 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const morgan = require('morgan');
+const sequelize = require('./config/basisdata');
+
+// Import rute-rute
+const ruteAuth = require('./routes/auth.routes');
+const rutePengguna = require('./routes/pengguna.routes');
+const ruteBarang = require('./routes/barang.routes');
+const ruteKategori = require('./routes/kategori.routes');
+const ruteLokasi = require('./routes/lokasi.routes');
+const rutePeminjaman = require('./routes/peminjaman.routes');
+const ruteLaporan = require('./routes/laporan.routes');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(morgan('dev'));
+
+// Koneksi database
+sequelize.authenticate()
+  .then(() => console.log('Database MySQL berhasil terhubung'))
+  .catch(err => console.error('Kesalahan koneksi database MySQL:', err));
+
+// Sinkronisasi model dengan database
+if (process.env.NODE_ENV === 'development') {
+  sequelize.sync({ alter: false }) // Ubah dari alter: true menjadi alter: false
+    .then(() => console.log('Database berhasil disinkronisasi'))
+    .catch(err => console.error('Kesalahan sinkronisasi database:', err));
+}
+
+// Rute-rute API
+app.use('/api/auth', ruteAuth);
+app.use('/api/pengguna', rutePengguna);
+app.use('/api/barang', ruteBarang);
+app.use('/api/kategori', ruteKategori);
+app.use('/api/lokasi', ruteLokasi);
+app.use('/api/peminjaman', rutePeminjaman);
+app.use('/api/laporan', ruteLaporan);
+
+// Endpoint status
+app.get('/api/status', (req, res) => {
+  res.status(200).json({ status: 'Server sedang berjalan', waktu: new Date() });
+});
+
+// Middleware penanganan kesalahan
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    sukses: false,
+    pesan: 'Terjadi kesalahan pada server',
+    kesalahan: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// Mulai server
+app.listen(PORT, () => {
+  console.log(`Server berjalan pada port ${PORT}`);
+});
