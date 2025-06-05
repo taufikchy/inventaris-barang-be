@@ -64,26 +64,74 @@ exports.verifikasiToken = async (req, res, next) => {
   }
 };
 
-// Middleware untuk memeriksa peran admin
+// Middleware untuk memeriksa peran Kepala Lab (full akses)
+exports.hanyaKepalaLab = (req, res, next) => {
+  if (req.pengguna && req.pengguna.peran === 'kepala_lab') {
+    next();
+  } else {
+    return res.status(403).json({
+      sukses: false,
+      pesan: 'Akses ditolak. Hanya Kepala Lab yang diizinkan.'
+    });
+  }
+};
+
+// Middleware untuk memeriksa peran Admin
 exports.hanyaAdmin = (req, res, next) => {
   if (req.pengguna && req.pengguna.peran === 'admin') {
     next();
   } else {
     return res.status(403).json({
       sukses: false,
-      pesan: 'Akses ditolak. Hanya admin yang diizinkan.'
+      pesan: 'Akses ditolak. Hanya Admin yang diizinkan.'
     });
   }
 };
 
-// Middleware untuk memeriksa peran staf atau admin
-exports.stafAtauAdmin = (req, res, next) => {
-  if (req.pengguna && (req.pengguna.peran === 'staf' || req.pengguna.peran === 'admin')) {
+// Middleware untuk memeriksa peran Toolman
+exports.hanyaToolman = (req, res, next) => {
+  if (req.pengguna && req.pengguna.peran === 'toolman') {
     next();
   } else {
     return res.status(403).json({
       sukses: false,
-      pesan: 'Akses ditolak. Hanya staf atau admin yang diizinkan.'
+      pesan: 'Akses ditolak. Hanya Toolman yang diizinkan.'
+    });
+  }
+};
+
+// Middleware untuk memeriksa peran Admin atau Toolman (keduanya memiliki akses yang sama)
+exports.adminAtauToolman = (req, res, next) => {
+  if (req.pengguna && (req.pengguna.peran === 'admin' || req.pengguna.peran === 'toolman')) {
+    next();
+  } else {
+    return res.status(403).json({
+      sukses: false,
+      pesan: 'Akses ditolak. Hanya Admin atau Toolman yang diizinkan.'
+    });
+  }
+};
+
+// Middleware untuk memeriksa peran Admin, Toolman, atau Kepala Lab
+exports.adminToolmanAtauKepalaLab = (req, res, next) => {
+  if (req.pengguna && (req.pengguna.peran === 'admin' || req.pengguna.peran === 'toolman' || req.pengguna.peran === 'kepala_lab')) {
+    next();
+  } else {
+    return res.status(403).json({
+      sukses: false,
+      pesan: 'Akses ditolak. Hanya Admin, Toolman, atau Kepala Lab yang diizinkan.'
+    });
+  }
+};
+
+// Middleware untuk semua pengguna yang sudah login (termasuk Sarana yang hanya bisa melihat)
+exports.semuaPengguna = (req, res, next) => {
+  if (req.pengguna) {
+    next();
+  } else {
+    return res.status(403).json({
+      sukses: false,
+      pesan: 'Akses ditolak. Anda harus login terlebih dahulu.'
     });
   }
 };

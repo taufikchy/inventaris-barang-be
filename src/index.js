@@ -12,6 +12,7 @@ const ruteKategori = require('./routes/kategori.routes');
 const ruteLokasi = require('./routes/lokasi.routes');
 const rutePeminjaman = require('./routes/peminjaman.routes');
 const ruteLaporan = require('./routes/laporan.routes');
+const ruteDashboard = require('./routes/dashboard.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -41,6 +42,7 @@ app.use('/api/kategori', ruteKategori);
 app.use('/api/lokasi', ruteLokasi);
 app.use('/api/peminjaman', rutePeminjaman);
 app.use('/api/laporan', ruteLaporan);
+app.use('/api/dashboard', ruteDashboard);
 
 // Endpoint status
 app.get('/api/status', (req, res) => {
