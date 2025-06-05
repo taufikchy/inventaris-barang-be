@@ -148,17 +148,14 @@ exports.buatPeminjaman = async (req, res) => {
       });
     }
     
-    // Kurangi jumlah barang yang tersedia
-    await barang.update({ jumlah: barang.jumlah - 1 });
-    
-    // Buat peminjaman baru
+    // Buat peminjaman baru dengan status menunggu persetujuan
     const peminjamanBaru = await Peminjaman.create({
       nama_peminjam,
       kontak_peminjam,
       kelas_peminjam,
       tanggal_pinjam: new Date(tanggal_pinjam),
       tanggal_kembali_harapan: new Date(tanggal_kembali_harapan),
-      status: 'dipinjam',
+      status: 'menunggu_persetujuan', // Status awal adalah menunggu persetujuan
       catatan,
       id_barang,
       id_pengguna: req.userId // ID pengguna yang login
@@ -168,18 +165,188 @@ exports.buatPeminjaman = async (req, res) => {
     const peminjamanDenganRelasi = await Peminjaman.findByPk(peminjamanBaru.id, {
       include: [
         { model: Barang, as: 'barang' },
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'email', 'role'] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
       ]
     });
     
     res.status(201).json({
       sukses: true,
-      pesan: 'Peminjaman berhasil dibuat.',
+      pesan: 'Peminjaman berhasil dibuat dan menunggu persetujuan Kepala Lab.',
       data: peminjamanDenganRelasi
     });
     
   } catch (error) {
     console.error('Kesalahan membuat peminjaman:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan pada server.'
+    });
+  }
+};
+
+// Upload surat peminjaman
+exports.uploadSuratPeminjaman = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Cek apakah peminjaman ada
+    const peminjaman = await Peminjaman.findByPk(id);
+    
+    if (!peminjaman) {
+      return res.status(404).json({
+        sukses: false,
+        pesan: 'Peminjaman tidak ditemukan.'
+      });
+    }
+    
+    // Cek apakah file surat peminjaman diupload
+    if (!req.file) {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Surat peminjaman harus diupload.'
+      });
+    }
+    
+    // Update path surat peminjaman
+    const suratPath = `/uploads/surat_peminjaman/${req.file.filename}`;
+    await peminjaman.update({ surat_peminjaman: suratPath });
+    
+    // Dapatkan data peminjaman yang sudah diupdate dengan relasi
+    const peminjamanUpdated = await Peminjaman.findByPk(id, {
+      include: [
+        { model: Barang, as: 'barang' },
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
+      ]
+    });
+    
+    res.status(200).json({
+      sukses: true,
+      pesan: 'Surat peminjaman berhasil diupload.',
+      data: peminjamanUpdated
+    });
+    
+  } catch (error) {
+    console.error('Kesalahan upload surat peminjaman:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan pada server.'
+    });
+  }
+};
+
+// Persetujuan peminjaman oleh Kepala Lab
+exports.persetujuanPeminjaman = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, catatan_persetujuan } = req.body;
+    
+    // Validasi input
+    if (!status || !['disetujui', 'ditolak'].includes(status)) {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Status persetujuan harus diisi dengan nilai "disetujui" atau "ditolak".'
+      });
+    }
+    
+    // Cek apakah peminjaman ada
+    const peminjaman = await Peminjaman.findByPk(id, {
+      include: [{ model: Barang, as: 'barang' }]
+    });
+    
+    if (!peminjaman) {
+      return res.status(404).json({
+        sukses: false,
+        pesan: 'Peminjaman tidak ditemukan.'
+      });
+    }
+    
+    // Cek apakah status peminjaman adalah menunggu persetujuan
+    if (peminjaman.status !== 'menunggu_persetujuan') {
+      return res.status(400).json({
+        sukses: false,
+        pesan: `Peminjaman tidak dapat ${status === 'disetujui' ? 'disetujui' : 'ditolak'} karena status saat ini adalah ${peminjaman.status}.`
+      });
+    }
+    
+    // Update data peminjaman
+    const updateData = {
+      status: status,
+      id_kepala_lab: req.userId, // ID Kepala Lab yang memberikan persetujuan
+      tanggal_persetujuan: new Date(),
+      catatan_persetujuan: catatan_persetujuan || null
+    };
+    
+    // Jika disetujui, ubah status menjadi dipinjam dan kurangi jumlah barang
+    if (status === 'disetujui') {
+      // Kurangi jumlah barang yang tersedia
+      const barang = peminjaman.barang;
+      if (barang.jumlah <= 0) {
+        return res.status(400).json({
+          sukses: false,
+          pesan: 'Barang tidak tersedia untuk dipinjam.'
+        });
+      }
+      await barang.update({ jumlah: barang.jumlah - 1 });
+      
+      // Update status menjadi dipinjam
+      updateData.status = 'dipinjam';
+    }
+    
+    // Update peminjaman
+    await peminjaman.update(updateData);
+    
+    // Dapatkan data peminjaman yang sudah diupdate dengan relasi
+    const peminjamanUpdated = await Peminjaman.findByPk(id, {
+      include: [
+        { model: Barang, as: 'barang' },
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: Pengguna, as: 'kepala_lab', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
+      ]
+    });
+    
+    res.status(200).json({
+      sukses: true,
+      pesan: `Peminjaman berhasil ${status === 'disetujui' ? 'disetujui' : 'ditolak'}.`,
+      data: peminjamanUpdated
+    });
+    
+  } catch (error) {
+    console.error('Kesalahan persetujuan peminjaman:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan pada server.'
+    });
+  }
+};
+
+// Mencetak surat peminjaman
+exports.cetakSuratPeminjaman = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Cek apakah peminjaman ada
+    const peminjaman = await Peminjaman.findByPk(id, {
+      include: [
+        { model: Barang, as: 'barang' },
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
+      ]
+    });
+    
+    if (!peminjaman) {
+      return res.status(404).json({
+        sukses: false,
+        pesan: 'Peminjaman tidak ditemukan.'
+      });
+    }
+    
+    // Kirim data untuk dicetak di frontend
+    res.status(200).json({
+      sukses: true,
+      data: peminjaman
+    });
+    
+  } catch (error) {
+    console.error('Kesalahan mencetak surat peminjaman:', error);
     res.status(500).json({
       sukses: false,
       pesan: 'Terjadi kesalahan pada server.'

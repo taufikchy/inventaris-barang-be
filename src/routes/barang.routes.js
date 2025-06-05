@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const barangController = require('../controllers/barang.controller');
-const { verifikasiToken, stafAtauAdmin, hanyaAdmin } = require('../middleware/auth');
+const { verifikasiToken, semuaPengguna, adminAtauToolman, hanyaKepalaLab } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -45,22 +45,22 @@ const upload = multer({
 // Semua rute di bawah ini memerlukan autentikasi
 router.use(verifikasiToken);
 
-// Rute untuk mendapatkan semua barang
-router.get('/', stafAtauAdmin, barangController.dapatkanSemuaBarang);
+// Rute untuk mendapatkan semua barang (semua pengguna bisa melihat)
+router.get('/', semuaPengguna, barangController.dapatkanSemuaBarang);
 
-// Rute untuk mendapatkan semua barang untuk dropdown (tanpa pagination)
-router.get('/dropdown', stafAtauAdmin, barangController.dapatkanSemuaBarangDropdown);
+// Rute untuk mendapatkan semua barang untuk dropdown (tanpa pagination) (semua pengguna bisa melihat)
+router.get('/dropdown', semuaPengguna, barangController.dapatkanSemuaBarangDropdown);
 
-// Rute untuk mendapatkan barang berdasarkan ID
-router.get('/:id', stafAtauAdmin, barangController.dapatkanBarangById);
+// Rute untuk mendapatkan barang berdasarkan ID (semua pengguna bisa melihat)
+router.get('/:id', semuaPengguna, barangController.dapatkanBarangById);
 
-// Rute untuk membuat barang baru (hanya admin)
-router.post('/', hanyaAdmin, upload.single('gambar'), barangController.buatBarang);
+// Rute untuk membuat barang baru (Admin dan Toolman)
+router.post('/', adminAtauToolman, upload.single('gambar'), barangController.buatBarang);
 
-// Rute untuk mengupdate barang (hanya admin)
-router.put('/:id', hanyaAdmin, upload.single('gambar'), barangController.updateBarang);
+// Rute untuk mengupdate barang (Admin dan Toolman)
+router.put('/:id', adminAtauToolman, upload.single('gambar'), barangController.updateBarang);
 
-// Rute untuk menghapus barang (hanya admin)
-router.delete('/:id', hanyaAdmin, barangController.hapusBarang);
+// Rute untuk menghapus barang (hanya Kepala Lab)
+router.delete('/:id', hanyaKepalaLab, barangController.hapusBarang);
 
 module.exports = router;

@@ -36,8 +36,8 @@ const Peminjaman = sequelize.define('Peminjaman', {
     allowNull: true
   },
   status: {
-    type: DataTypes.ENUM('dipinjam', 'dikembalikan', 'terlambat'),
-    defaultValue: 'dipinjam'
+    type: DataTypes.ENUM('menunggu_persetujuan', 'disetujui', 'ditolak', 'dipinjam', 'dikembalikan', 'terlambat'),
+    defaultValue: 'menunggu_persetujuan'
   },
   catatan: {
     type: DataTypes.TEXT,
@@ -50,6 +50,27 @@ const Peminjaman = sequelize.define('Peminjaman', {
       model: Pengguna,
       key: 'id'
     }
+  },
+  id_kepala_lab: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: Pengguna,
+      key: 'id'
+    }
+  },
+  tanggal_persetujuan: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  catatan_persetujuan: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  surat_peminjaman: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Path ke file surat peminjaman yang dicetak'
   }
 }, {
   tableName: 'peminjaman',

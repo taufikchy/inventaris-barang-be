@@ -14,9 +14,13 @@ Kategori.hasMany(Barang, { foreignKey: 'id_kategori', as: 'barang' });
 Barang.belongsTo(Lokasi, { foreignKey: 'id_lokasi', as: 'lokasi' });
 Lokasi.hasMany(Barang, { foreignKey: 'id_lokasi', as: 'barang' });
 
-// Relasi Peminjaman dengan Pengguna
+// Relasi Peminjaman dengan Pengguna (pembuat peminjaman)
 Peminjaman.belongsTo(Pengguna, { foreignKey: 'id_pengguna', as: 'pengguna' });
 Pengguna.hasMany(Peminjaman, { foreignKey: 'id_pengguna', as: 'peminjaman' });
+
+// Relasi Peminjaman dengan Pengguna (kepala lab yang menyetujui)
+Peminjaman.belongsTo(Pengguna, { foreignKey: 'id_kepala_lab', as: 'kepala_lab' });
+Pengguna.hasMany(Peminjaman, { foreignKey: 'id_kepala_lab', as: 'peminjaman_disetujui' });
 
 // Relasi many-to-many Peminjaman dengan Barang melalui DetailPeminjaman
 Peminjaman.belongsToMany(Barang, { through: DetailPeminjaman, foreignKey: 'id_peminjaman', as: 'barang' });

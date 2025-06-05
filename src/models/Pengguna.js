@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
-const bcrypt = require('bcryptjs');
 const sequelize = require('../config/basisdata');
+const bcrypt = require('bcryptjs');
 
 // Model untuk tabel pengguna
 const Pengguna = sequelize.define('Pengguna', {
@@ -23,8 +23,8 @@ const Pengguna = sequelize.define('Pengguna', {
     allowNull: false
   },
   peran: {
-    type: DataTypes.ENUM('admin', 'staf'),
-    defaultValue: 'staf'
+    type: DataTypes.ENUM('admin', 'kepala_lab', 'toolman', 'sarana'),
+    defaultValue: 'sarana'
   },
   aktif: {
     type: DataTypes.BOOLEAN,
@@ -36,18 +36,14 @@ const Pengguna = sequelize.define('Pengguna', {
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   hooks: {
-    // Hook sebelum membuat pengguna baru (enkripsi kata sandi)
     beforeCreate: async (pengguna) => {
       if (pengguna.kata_sandi) {
-        const salt = await bcrypt.genSalt(10);
-        pengguna.kata_sandi = await bcrypt.hash(pengguna.kata_sandi, salt);
+        pengguna.kata_sandi = await bcrypt.hash(pengguna.kata_sandi, 10);
       }
     },
-    // Hook sebelum memperbarui pengguna (enkripsi kata sandi jika diubah)
     beforeUpdate: async (pengguna) => {
       if (pengguna.changed('kata_sandi')) {
-        const salt = await bcrypt.genSalt(10);
-        pengguna.kata_sandi = await bcrypt.hash(pengguna.kata_sandi, salt);
+        pengguna.kata_sandi = await bcrypt.hash(pengguna.kata_sandi, 10);
       }
     }
   }
