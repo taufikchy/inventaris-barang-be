@@ -1,4 +1,4 @@
-const { Barang, Kategori, Lokasi, Peminjaman, Pengguna } = require('../models');
+const { Barang, Kategori, Peminjaman, Pengguna, Transaksi, Lokasi } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 
 // Mendapatkan data statistik untuk dashboard
@@ -17,13 +17,58 @@ exports.getDashboardStats = async (req, res) => {
       }
     });
     
-    // Hitung total barang rusak (rusak ringan + rusak berat)
-    const barangRusak = await Barang.sum('jumlah', {
+    // Hitung barang berdasarkan kondisi
+    const barangBaik = await Barang.sum('jumlah', {
       where: {
-        kondisi: {
-          [Op.in]: ['rusak_ringan', 'rusak_berat']
+        kondisi: 'baik'
+      }
+    }) || 0;
+    
+    const barangRusakRingan = await Barang.sum('jumlah', {
+      where: {
+        kondisi: 'rusak_ringan'
+      }
+    }) || 0;
+    
+    const barangRusakBerat = await Barang.sum('jumlah', {
+      where: {
+        kondisi: 'rusak_berat'
+      }
+    }) || 0;
+    
+    // Total barang rusak (rusak ringan + rusak berat)
+    const barangRusak = barangRusakRingan + barangRusakBerat;
+    
+    // Hitung total transaksi hari ini
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const totalTransaksiHariIni = await Transaksi.count({
+      where: {
+        tanggal_transaksi: {
+          [Op.between]: [today, tomorrow]
         }
       }
+    });
+    
+    // Hitung transaksi per jenis dalam 30 hari terakhir
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const transaksiPerJenis = await Transaksi.findAll({
+      attributes: [
+        'jenis_transaksi',
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'total']
+      ],
+      where: {
+        tanggal_transaksi: {
+          [Op.gte]: thirtyDaysAgo
+        }
+      },
+      group: ['jenis_transaksi'],
+      raw: true
     });
     
     // Dapatkan peminjaman terbaru (5 terakhir)
@@ -41,30 +86,26 @@ exports.getDashboardStats = async (req, res) => {
       ]
     });
     
-    // Dapatkan jumlah barang per kategori
-    const barangPerKategoriRaw = await Barang.findAll({
-      attributes: [
-        [Sequelize.col('kategori.id'), 'id'],
-        [Sequelize.col('kategori.nama'), 'nama'],
-        [Sequelize.fn('SUM', Sequelize.col('jumlah')), 'jumlah']
-      ],
-      include: [{
-        model: Kategori,
-        as: 'kategori',
-        attributes: []
-      }],
-      group: ['kategori.id', 'kategori.nama'],
-      raw: true
+    // Dapatkan transaksi terbaru (5 terakhir)
+    const recentTransaksi = await Transaksi.findAll({
+      limit: 5,
+      order: [['tanggal_transaksi', 'DESC']],
+      include: [
+        {
+          model: Barang,
+          as: 'barang',
+          attributes: ['nama', 'kode']
+        },
+        {
+          model: Pengguna,
+          as: 'pengguna',
+          attributes: ['nama']
+        }
+      ]
     });
     
-    // Format data barang per kategori
-    const barangPerKategori = barangPerKategoriRaw.map(item => ({
-      nama: item.nama,
-      jumlah: parseInt(item.jumlah)
-    }));
-    
-    // Dapatkan jumlah barang per kondisi
-    const kondisiBarangRaw = await Barang.findAll({
+    // Dapatkan distribusi barang per kondisi (untuk chart bar)
+    const distribusiPerKondisiRaw = await Barang.findAll({
       attributes: [
         'kondisi',
         [Sequelize.fn('SUM', Sequelize.col('jumlah')), 'jumlah']
@@ -73,13 +114,37 @@ exports.getDashboardStats = async (req, res) => {
       raw: true
     });
     
-    // Format data kondisi barang
-    const kondisiBarang = kondisiBarangRaw.map(item => ({
-      kondisi: item.kondisi === 'baik' ? 'Baik' : 
-               item.kondisi === 'rusak_ringan' ? 'Rusak Ringan' : 
-               item.kondisi === 'rusak_berat' ? 'Rusak Berat' : 'Tidak Diketahui',
+    // Format data distribusi per kondisi
+    const distribusiPerKondisi = distribusiPerKondisiRaw.map(item => ({
+      nama: item.kondisi === 'baik' ? 'Baik' : 
+            item.kondisi === 'rusak_ringan' ? 'Rusak Ringan' : 
+            item.kondisi === 'rusak_berat' ? 'Rusak Berat' : 'Tidak Diketahui',
       jumlah: parseInt(item.jumlah)
     }));
+    
+    // Dapatkan distribusi barang per lokasi/ruangan (untuk chart pie)
+    const barangPerLokasiRaw = await Barang.findAll({
+      attributes: [
+        [Sequelize.col('lokasi.id'), 'id'],
+        [Sequelize.col('lokasi.nama'), 'nama'],
+        [Sequelize.fn('SUM', Sequelize.col('jumlah')), 'jumlah']
+      ],
+      include: [{
+        model: Lokasi,
+        as: 'lokasi',
+        attributes: []
+      }],
+      group: ['lokasi.id', 'lokasi.nama'],
+      raw: true
+    });
+    
+    // Format data barang per lokasi
+    const barangPerLokasi = barangPerLokasiRaw.map(item => ({
+      nama: item.nama,
+      jumlah: parseInt(item.jumlah)
+    }));
+    
+
     
     res.status(200).json({
       sukses: true,
@@ -88,11 +153,17 @@ exports.getDashboardStats = async (req, res) => {
           totalBarang: totalBarang || 0,
           totalKategori,
           totalPeminjaman,
-          barangRusak: barangRusak || 0
+          barangRusak: barangRusak || 0,
+          barangBaik: barangBaik,
+          barangRusakRingan: barangRusakRingan,
+          barangRusakBerat: barangRusakBerat,
+          totalTransaksiHariIni
         },
         recentPeminjaman,
-        barangPerKategori,
-        kondisiBarang
+        recentTransaksi,
+        distribusiPerKondisi,
+        barangPerLokasi,
+        transaksiPerJenis
       }
     });
     
