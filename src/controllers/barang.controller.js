@@ -54,9 +54,22 @@ exports.dapatkanSemuaBarang = async (req, res) => {
       order: [['updatedAt', 'DESC']]
     });
     
+    // Konversi kondisi ke format frontend untuk semua barang
+    const kondisiFrontendMapping = {
+      'baik': 'Baik',
+      'rusak_ringan': 'Rusak Ringan',
+      'rusak_berat': 'Rusak Berat'
+    };
+    
+    const barangData = barang.map(item => {
+      const itemData = item.toJSON();
+      itemData.kondisi = kondisiFrontendMapping[itemData.kondisi] || itemData.kondisi;
+      return itemData;
+    });
+    
     res.status(200).json({
       sukses: true,
-      data: barang,
+      data: barangData,
       pagination: {
         halaman: parseInt(halaman),
         batas: parseInt(batas),
@@ -95,9 +108,22 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
       order: [['nama', 'ASC']]
     });
     
+    // Konversi kondisi ke format frontend
+    const kondisiFrontendMapping = {
+      'baik': 'Baik',
+      'rusak_ringan': 'Rusak Ringan',
+      'rusak_berat': 'Rusak Berat'
+    };
+    
+    const barangData = barang.map(item => {
+      const itemData = item.toJSON();
+      itemData.kondisi = kondisiFrontendMapping[itemData.kondisi] || itemData.kondisi;
+      return itemData;
+    });
+    
     res.status(200).json({
       sukses: true,
-      data: barang
+      data: barangData
     });
     
   } catch (error) {
@@ -128,9 +154,19 @@ exports.dapatkanBarangById = async (req, res) => {
       });
     }
     
+    // Konversi kondisi ke format frontend
+    const kondisiFrontendMapping = {
+      'baik': 'Baik',
+      'rusak_ringan': 'Rusak Ringan',
+      'rusak_berat': 'Rusak Berat'
+    };
+    
+    const barangData = barang.toJSON();
+    barangData.kondisi = kondisiFrontendMapping[barangData.kondisi] || barangData.kondisi;
+    
     res.status(200).json({
       sukses: true,
-      data: barang
+      data: barangData
     });
     
   } catch (error) {
@@ -188,13 +224,22 @@ exports.buatBarang = async (req, res) => {
       gambarPath = `/uploads/barang/${req.file.filename}`;
     }
     
+    // Konversi kondisi ke format database
+    const kondisiMapping = {
+      'Baik': 'baik',
+      'Rusak Ringan': 'rusak_ringan',
+      'Rusak Berat': 'rusak_berat'
+    };
+    
+    const kondisiDatabase = kondisi ? kondisiMapping[kondisi] || kondisi.toLowerCase().replace(' ', '_') : 'baik';
+    
     // Buat barang baru
     const barangBaru = await Barang.create({
       nama,
       kode,
       deskripsi,
       jumlah: jumlah || 1,
-      kondisi: kondisi || 'baik',
+      kondisi: kondisiDatabase,
       tanggal_perolehan,
       harga_perolehan,
       gambar: gambarPath,
@@ -210,10 +255,20 @@ exports.buatBarang = async (req, res) => {
       ]
     });
     
+    // Konversi kondisi ke format frontend
+    const kondisiFrontendMapping = {
+      'baik': 'Baik',
+      'rusak_ringan': 'Rusak Ringan',
+      'rusak_berat': 'Rusak Berat'
+    };
+    
+    const barangData = barangDenganRelasi.toJSON();
+    barangData.kondisi = kondisiFrontendMapping[barangData.kondisi] || barangData.kondisi;
+    
     res.status(201).json({
       sukses: true,
       pesan: 'Barang berhasil ditambahkan.',
-      data: barangDenganRelasi
+      data: barangData
     });
     
   } catch (error) {
@@ -285,13 +340,22 @@ exports.updateBarang = async (req, res) => {
       gambarPath = `/uploads/barang/${req.file.filename}`;
     }
     
+    // Konversi kondisi ke format database
+    const kondisiMapping = {
+      'Baik': 'baik',
+      'Rusak Ringan': 'rusak_ringan',
+      'Rusak Berat': 'rusak_berat'
+    };
+    
+    const kondisiDatabase = kondisi ? kondisiMapping[kondisi] || kondisi.toLowerCase().replace(' ', '_') : barang.kondisi;
+    
     // Update barang
     await barang.update({
       nama: nama || barang.nama,
       kode: kode || barang.kode,
       deskripsi: deskripsi !== undefined ? deskripsi : barang.deskripsi,
       jumlah: jumlah !== undefined ? jumlah : barang.jumlah,
-      kondisi: kondisi || barang.kondisi,
+      kondisi: kondisiDatabase,
       tanggal_perolehan: tanggal_perolehan || barang.tanggal_perolehan,
       harga_perolehan: harga_perolehan !== undefined ? harga_perolehan : barang.harga_perolehan,
       gambar: gambarPath,
@@ -307,10 +371,20 @@ exports.updateBarang = async (req, res) => {
       ]
     });
     
+    // Konversi kondisi ke format frontend
+    const kondisiFrontendMapping = {
+      'baik': 'Baik',
+      'rusak_ringan': 'Rusak Ringan',
+      'rusak_berat': 'Rusak Berat'
+    };
+    
+    const barangData = barangUpdated.toJSON();
+    barangData.kondisi = kondisiFrontendMapping[barangData.kondisi] || barangData.kondisi;
+    
     res.status(200).json({
       sukses: true,
       pesan: 'Barang berhasil diperbarui.',
-      data: barangUpdated
+      data: barangData
     });
     
   } catch (error) {

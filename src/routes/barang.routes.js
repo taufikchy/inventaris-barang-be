@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const barangController = require('../controllers/barang.controller');
-const { verifikasiToken, semuaPengguna, adminAtauToolman, hanyaKepalaLab } = require('../middleware/auth');
+const { verifikasiToken, semuaPengguna, adminAtauToolman, hanyaKepalaLab, adminToolmanAtauKepalaLab } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -54,11 +54,11 @@ router.get('/dropdown', semuaPengguna, barangController.dapatkanSemuaBarangDropd
 // Rute untuk mendapatkan barang berdasarkan ID (semua pengguna bisa melihat)
 router.get('/:id', semuaPengguna, barangController.dapatkanBarangById);
 
-// Rute untuk membuat barang baru (Admin dan Toolman)
-router.post('/', adminAtauToolman, upload.single('gambar'), barangController.buatBarang);
+// Rute untuk membuat barang baru (Admin, Toolman, dan Kepala Lab)
+router.post('/', adminToolmanAtauKepalaLab, upload.single('gambar'), barangController.buatBarang);
 
-// Rute untuk mengupdate barang (Admin dan Toolman)
-router.put('/:id', adminAtauToolman, upload.single('gambar'), barangController.updateBarang);
+// Rute untuk mengupdate barang (Admin, Toolman, dan Kepala Lab)
+router.put('/:id', adminToolmanAtauKepalaLab, upload.single('gambar'), barangController.updateBarang);
 
 // Rute untuk menghapus barang (hanya Kepala Lab)
 router.delete('/:id', hanyaKepalaLab, barangController.hapusBarang);
