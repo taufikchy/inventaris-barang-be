@@ -29,8 +29,8 @@ const Barang = sequelize.define('Barang', {
     defaultValue: 0
   },
   kondisi: {
-    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
-    defaultValue: 'baik'
+    type: DataTypes.ENUM('Baik', 'Rusak Ringan', 'Rusak Berat'),
+    defaultValue: 'Baik'
   },
   tanggal_perolehan: {
     type: DataTypes.DATEONLY,
@@ -61,8 +61,8 @@ const Barang = sequelize.define('Barang', {
     }
   },
   status: {
-    type: DataTypes.ENUM('tersedia', 'dipinjam', 'perbaikan', 'dihapuskan'),
-    defaultValue: 'tersedia'
+    type: DataTypes.ENUM('Tersedia', 'Dipinjam', 'Perbaikan', 'Rusak'),
+    defaultValue: 'Tersedia'
   }
 }, {
   tableName: 'barang',
