@@ -29,8 +29,8 @@ const Barang = sequelize.define('Barang', {
     defaultValue: 0
   },
   kondisi: {
-    type: DataTypes.ENUM('Baik', 'Rusak Ringan', 'Rusak Berat'),
-    defaultValue: 'Baik'
+    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
+    defaultValue: 'baik'
   },
   tanggal_perolehan: {
     type: DataTypes.DATEONLY,

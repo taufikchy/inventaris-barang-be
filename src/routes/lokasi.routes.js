@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const lokasiController = require('../controllers/lokasi.controller');
-const { verifikasiToken, semuaPengguna, adminAtauToolman, hanyaKepalaLab } = require('../middleware/auth');
+const { verifikasiToken, semuaPengguna, adminAtauToolman, hanyaKepalaLab, adminToolmanAtauKepalaLab } = require('../middleware/auth');
 
 // Semua rute di bawah ini memerlukan autentikasi
 router.use(verifikasiToken);
@@ -16,10 +16,10 @@ router.get('/dropdown', semuaPengguna, lokasiController.dapatkanSemuaLokasiDropd
 router.get('/:id', semuaPengguna, lokasiController.dapatkanLokasiById);
 
 // Rute untuk membuat lokasi baru
-router.post('/', adminAtauToolman, lokasiController.buatLokasi);
+router.post('/', adminToolmanAtauKepalaLab, lokasiController.buatLokasi);
 
 // Rute untuk memperbarui lokasi
-router.put('/:id', adminAtauToolman, lokasiController.updateLokasi);
+router.put('/:id', adminToolmanAtauKepalaLab, lokasiController.updateLokasi);
 
 // Rute untuk menghapus lokasi
 router.delete('/:id', hanyaKepalaLab, lokasiController.hapusLokasi);

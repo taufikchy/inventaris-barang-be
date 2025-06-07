@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const kategoriController = require('../controllers/kategori.controller');
-const { verifikasiToken, semuaPengguna, adminAtauToolman, hanyaKepalaLab } = require('../middleware/auth');
+const { verifikasiToken, semuaPengguna, adminAtauToolman, hanyaKepalaLab, adminToolmanAtauKepalaLab } = require('../middleware/auth');
 
 // Semua rute di bawah ini memerlukan autentikasi
 router.use(verifikasiToken);
@@ -16,10 +16,10 @@ router.get('/dropdown', semuaPengguna, kategoriController.dapatkanSemuaKategoriD
 router.get('/:id', semuaPengguna, kategoriController.dapatkanKategoriById);
 
 // Rute untuk membuat kategori baru
-router.post('/', adminAtauToolman, kategoriController.buatKategori);
+router.post('/', adminToolmanAtauKepalaLab, kategoriController.buatKategori);
 
 // Rute untuk mengupdate kategori
-router.put('/:id', adminAtauToolman, kategoriController.perbaruiKategori);
+router.put('/:id', adminToolmanAtauKepalaLab, kategoriController.perbaruiKategori);
 
 // Rute untuk menghapus kategori
 router.delete('/:id', hanyaKepalaLab, kategoriController.hapusKategori);
