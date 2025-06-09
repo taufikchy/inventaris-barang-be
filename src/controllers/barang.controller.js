@@ -64,6 +64,8 @@ exports.dapatkanSemuaBarang = async (req, res) => {
     const barangData = barang.map(item => {
       const itemData = item.toJSON();
       itemData.kondisi = kondisiFrontendMapping[itemData.kondisi] || itemData.kondisi;
+      // Tambahkan jumlah_tersedia yang sama dengan jumlah
+      itemData.jumlah_tersedia = itemData.jumlah;
       return itemData;
     });
     
@@ -118,6 +120,8 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
     const barangData = barang.map(item => {
       const itemData = item.toJSON();
       itemData.kondisi = kondisiFrontendMapping[itemData.kondisi] || itemData.kondisi;
+      // Tambahkan jumlah_tersedia yang sama dengan jumlah
+      itemData.jumlah_tersedia = itemData.jumlah;
       return itemData;
     });
     
@@ -163,6 +167,8 @@ exports.dapatkanBarangById = async (req, res) => {
     
     const barangData = barang.toJSON();
     barangData.kondisi = kondisiFrontendMapping[barangData.kondisi] || barangData.kondisi;
+    // Tambahkan jumlah_tersedia yang sama dengan jumlah
+    barangData.jumlah_tersedia = barangData.jumlah;
     
     res.status(200).json({
       sukses: true,
@@ -264,6 +270,8 @@ exports.buatBarang = async (req, res) => {
     
     const barangData = barangDenganRelasi.toJSON();
     barangData.kondisi = kondisiFrontendMapping[barangData.kondisi] || barangData.kondisi;
+    // Tambahkan jumlah_tersedia yang sama dengan jumlah
+    barangData.jumlah_tersedia = barangData.jumlah;
     
     res.status(201).json({
       sukses: true,
@@ -380,6 +388,8 @@ exports.updateBarang = async (req, res) => {
     
     const barangData = barangUpdated.toJSON();
     barangData.kondisi = kondisiFrontendMapping[barangData.kondisi] || barangData.kondisi;
+    // Tambahkan jumlah_tersedia yang sama dengan jumlah
+    barangData.jumlah_tersedia = barangData.jumlah;
     
     res.status(200).json({
       sukses: true,
