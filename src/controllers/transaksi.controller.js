@@ -67,7 +67,7 @@ const getAllTransaksi = async (req, res) => {
         {
           model: Pengguna,
           as: 'pengguna',
-          attributes: ['id', 'nama', 'email']
+          attributes: ['id', 'nama'] // Hapus 'email' dari attributes
         }
       ],
       order: [['tanggal_transaksi', 'DESC']],
