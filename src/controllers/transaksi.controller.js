@@ -116,7 +116,7 @@ const getTransaksiById = async (req, res) => {
         {
           model: Pengguna,
           as: 'pengguna',
-          attributes: ['id', 'nama', 'email']
+          attributes: ['id', 'nama', 'nama_pengguna']
         }
       ]
     });
@@ -234,7 +234,7 @@ const createTransaksi = async (req, res) => {
         {
           model: Pengguna,
           as: 'pengguna',
-          attributes: ['id', 'nama', 'email']
+          attributes: ['id', 'nama', 'nama_pengguna']
         }
       ]
     });
