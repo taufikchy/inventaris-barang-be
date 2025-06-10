@@ -140,7 +140,7 @@ exports.getLaporanPeminjaman = async (req, res) => {
       where: kondisi,
       include: [
         { model: Barang, as: 'barang', include: [{ model: Kategori, as: 'kategori' }] },
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'email', 'role'] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
       ],
       order: [['tanggal_pinjam', 'DESC']]
     });
