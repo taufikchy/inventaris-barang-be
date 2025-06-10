@@ -51,7 +51,8 @@ exports.dapatkanSemuaPeminjaman = async (req, res) => {
       where: kondisi,
       include: [
         { model: Barang, as: 'barang' },
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
       ],
       limit: parseInt(batas),
       offset: offset,
@@ -86,7 +87,8 @@ exports.dapatkanPeminjamanById = async (req, res) => {
     const peminjaman = await Peminjaman.findByPk(id, {
       include: [
         { model: Barang, as: 'barang' },
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
       ]
     });
     
@@ -167,7 +169,7 @@ exports.buatPeminjaman = async (req, res) => {
       tanggal_kembali_harapan: new Date(tanggal_kembali_harapan),
       status: 'menunggu_persetujuan', // Status awal adalah menunggu persetujuan
       catatan,
-      id_pengguna: req.userId // ID pengguna yang login
+      id_pengguna: req.pengguna.id // Menggunakan req.pengguna.id sebagai gantinya req.userId
     });
     
     // Buat detail peminjaman untuk setiap barang
@@ -347,7 +349,8 @@ exports.cetakSuratPeminjaman = async (req, res) => {
     const peminjaman = await Peminjaman.findByPk(id, {
       include: [
         { model: Barang, as: 'barang' },
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
       ]
     });
     
