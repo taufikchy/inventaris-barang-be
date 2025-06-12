@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const penggunaController = require('../controllers/pengguna.controller');
-const { verifikasiToken, hanyaKepalaLab } = require('../middleware/auth');
+const { verifikasiToken, hanyaKepalaLab, semuaPengguna } = require('../middleware/auth');
 
 // Semua rute di bawah ini memerlukan autentikasi
 router.use(verifikasiToken);
+
+// Rute untuk mendapatkan dropdown pengguna (semua user yang login)
+router.get('/dropdown', semuaPengguna, penggunaController.dapatkanSemuaPenggunaDropdown);
 
 // Rute untuk mendapatkan semua pengguna (hanya kepala lab)
 router.get('/', hanyaKepalaLab, penggunaController.dapatkanSemuaPengguna);

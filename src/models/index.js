@@ -5,6 +5,7 @@ const Lokasi = require('./Lokasi');
 const Barang = require('./Barang');
 const { Peminjaman, DetailPeminjaman } = require('./Peminjaman');
 const Transaksi = require('./Transaksi');
+const HistoriAktivitas = require('./HistoriAktivitas');
 
 // Definisi relasi antar model
 
@@ -39,6 +40,10 @@ Barang.hasMany(Transaksi, { foreignKey: 'id_barang', as: 'transaksi' });
 Transaksi.belongsTo(Pengguna, { foreignKey: 'id_pengguna', as: 'pengguna' });
 Pengguna.hasMany(Transaksi, { foreignKey: 'id_pengguna', as: 'transaksi' });
 
+// Relasi HistoriAktivitas dengan Pengguna
+HistoriAktivitas.belongsTo(Pengguna, { foreignKey: 'id_pengguna', as: 'pengguna' });
+Pengguna.hasMany(HistoriAktivitas, { foreignKey: 'id_pengguna', as: 'histori_aktivitas' });
+
 module.exports = {
   Pengguna,
   Kategori,
@@ -46,5 +51,6 @@ module.exports = {
   Barang,
   Peminjaman,
   DetailPeminjaman,
-  Transaksi
+  Transaksi,
+  HistoriAktivitas
 };

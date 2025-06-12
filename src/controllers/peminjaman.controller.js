@@ -271,7 +271,7 @@ exports.persetujuanPeminjaman = async (req, res) => {
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: Barang, as: 'barang' }]
+      include: [{ model: DetailPeminjaman, include: [{ model: Barang }] }]
     });
     
     if (!peminjaman) {
@@ -292,22 +292,29 @@ exports.persetujuanPeminjaman = async (req, res) => {
     // Update data peminjaman
     const updateData = {
       status: status,
-      id_kepala_lab: req.userId, // ID Kepala Lab yang memberikan persetujuan
+      id_kepala_lab: req.pengguna.id, // ID Kepala Lab yang memberikan persetujuan
       tanggal_persetujuan: new Date(),
       catatan_persetujuan: catatan_persetujuan || null
     };
     
     // Jika disetujui, ubah status menjadi dipinjam dan kurangi jumlah barang
     if (status === 'disetujui') {
-      // Kurangi jumlah barang yang tersedia
-      const barang = peminjaman.barang;
-      if (barang.jumlah <= 0) {
-        return res.status(400).json({
-          sukses: false,
-          pesan: 'Barang tidak tersedia untuk dipinjam.'
-        });
+      // Cek ketersediaan semua barang dalam detail peminjaman
+      for (const detail of peminjaman.DetailPeminjaman) {
+        const barang = detail.Barang;
+        if (barang.jumlah < detail.jumlah) {
+          return res.status(400).json({
+            sukses: false,
+            pesan: `Barang ${barang.nama_barang} tidak tersedia dalam jumlah yang diminta.`
+          });
+        }
       }
-      await barang.update({ jumlah: barang.jumlah - 1 });
+      
+      // Kurangi stok semua barang
+      for (const detail of peminjaman.DetailPeminjaman) {
+        const barang = detail.Barang;
+        await barang.update({ jumlah: barang.jumlah - detail.jumlah });
+      }
       
       // Update status menjadi dipinjam
       updateData.status = 'dipinjam';
@@ -319,15 +326,14 @@ exports.persetujuanPeminjaman = async (req, res) => {
     // Dapatkan data peminjaman yang sudah diupdate dengan relasi
     const peminjamanUpdated = await Peminjaman.findByPk(id, {
       include: [
-        { model: Barang, as: 'barang' },
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: Pengguna, as: 'kepala_lab', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
+        { model: Pengguna, attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, include: [{ model: Barang }] }
       ]
     });
     
     res.status(200).json({
       sukses: true,
-      pesan: `Peminjaman berhasil ${status === 'disetujui' ? 'disetujui' : 'ditolak'}.`,
+      pesan: `Peminjaman berhasil ${status === 'disetujui' ? 'disetujui dan status diubah menjadi dipinjam' : 'ditolak'}.`,
       data: peminjamanUpdated
     });
     
@@ -348,9 +354,8 @@ exports.cetakSuratPeminjaman = async (req, res) => {
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
       include: [
-        { model: Barang, as: 'barang' },
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
+        { model: Pengguna, attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, include: [{ model: Barang }] }
       ]
     });
     
@@ -384,7 +389,7 @@ exports.kembalikanBarang = async (req, res) => {
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: Barang, as: 'barang' }]
+      include: [{ model: DetailPeminjaman, include: [{ model: Barang }] }]
     });
     
     if (!peminjaman) {
@@ -409,20 +414,24 @@ exports.kembalikanBarang = async (req, res) => {
       catatan: catatan ? `${peminjaman.catatan || ''} | Catatan pengembalian: ${catatan}` : peminjaman.catatan
     });
     
-    // Update jumlah dan kondisi barang jika perlu
-    const barang = peminjaman.barang;
-    
-    // Tambah jumlah barang yang tersedia
-    await barang.update({ 
-      jumlah: barang.jumlah + 1,
-      kondisi: kondisi_barang || barang.kondisi
-    });
+    // Kembalikan stok semua barang yang dipinjam
+    for (const detail of peminjaman.DetailPeminjaman) {
+      const barang = detail.Barang;
+      await barang.update({ 
+        jumlah: barang.jumlah + detail.jumlah
+      });
+      
+      // Update kondisi saat kembali di detail peminjaman
+      await detail.update({
+        kondisi_saat_kembali: kondisi_barang || detail.kondisi_saat_pinjam
+      });
+    }
     
     // Dapatkan data peminjaman yang sudah diupdate dengan relasi
     const peminjamanUpdated = await Peminjaman.findByPk(id, {
       include: [
-        { model: Barang, as: 'barang' },
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
+        { model: Pengguna, attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, include: [{ model: Barang }] }
       ]
     });
     
@@ -459,7 +468,7 @@ exports.updatePeminjaman = async (req, res) => {
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: Barang, as: 'barang' }]
+      include: [{ model: DetailPeminjaman, include: [{ model: Barang }] }]
     });
     
     if (!peminjaman) {
