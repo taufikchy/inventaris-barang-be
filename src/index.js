@@ -11,7 +11,7 @@ const ruteBarang = require('./routes/barang.routes');
 const ruteKategori = require('./routes/kategori.routes');
 const ruteLokasi = require('./routes/lokasi.routes');
 const rutePeminjaman = require('./routes/peminjaman.routes');
-const ruteTransaksi = require('./routes/transaksi.routes');
+const ruteHistoriAktivitas = require('./routes/historiAktivitas.routes');
 const ruteLaporan = require('./routes/laporan.routes');
 const ruteDashboard = require('./routes/dashboard.routes');
 
@@ -47,7 +47,7 @@ app.use('/api/barang', ruteBarang);
 app.use('/api/kategori', ruteKategori);
 app.use('/api/lokasi', ruteLokasi);
 app.use('/api/peminjaman', rutePeminjaman);
-app.use('/api/transaksi', ruteTransaksi);
+app.use('/api/histori-aktivitas', ruteHistoriAktivitas);
 app.use('/api/laporan', ruteLaporan);
 app.use('/api/dashboard', ruteDashboard);
 

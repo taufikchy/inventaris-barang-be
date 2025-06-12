@@ -278,3 +278,26 @@ exports.hapusPengguna = async (req, res) => {
     });
   }
 };
+
+// Mendapatkan semua pengguna untuk dropdown (hanya nama dan id)
+exports.dapatkanSemuaPenggunaDropdown = async (req, res) => {
+  try {
+    const pengguna = await Pengguna.findAll({
+      attributes: ['id', 'nama', 'nama_pengguna'],
+      where: { aktif: true },
+      order: [['nama', 'ASC']]
+    });
+    
+    res.status(200).json({
+      sukses: true,
+      data: pengguna
+    });
+    
+  } catch (error) {
+    console.error('Kesalahan mendapatkan dropdown pengguna:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan pada server.'
+    });
+  }
+};
