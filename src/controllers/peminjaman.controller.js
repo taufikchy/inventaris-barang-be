@@ -1,4 +1,4 @@
-const { Peminjaman, Barang, Pengguna, DetailPeminjaman } = require('../models');
+const { Peminjaman, Barang, Pengguna, DetailPeminjaman, Lokasi } = require('../models');
 const { Op } = require('sequelize');
 
 // Mendapatkan semua peminjaman
@@ -52,7 +52,7 @@ exports.dapatkanSemuaPeminjaman = async (req, res) => {
       include: [
         { model: Barang, as: 'barang' },
         { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang', include: [{ model: Lokasi, as: 'lokasi' }] }] }
       ],
       limit: parseInt(batas),
       offset: offset,
@@ -88,7 +88,7 @@ exports.dapatkanPeminjamanById = async (req, res) => {
       include: [
         { model: Barang, as: 'barang' },
         { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang', include: [{ model: Lokasi, as: 'lokasi' }] }] }
       ]
     });
     
