@@ -1,7 +1,49 @@
-const { Barang, Kategori, Lokasi } = require('../models');
+const { Barang, Kategori, Lokasi, Peminjaman, DetailPeminjaman } = require('../models');
 const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
+
+// Fungsi untuk mengecek dan mengupdate status barang berdasarkan peminjaman aktif
+const updateStatusBarangBerdasarkanPeminjaman = async (barangId) => {
+  try {
+    // Cek apakah ada peminjaman aktif untuk barang ini
+    const peminjamanAktif = await DetailPeminjaman.findOne({
+      include: [{
+        model: Peminjaman,
+        as: 'peminjaman',
+        where: {
+          status: 'dipinjam'
+        }
+      }],
+      where: {
+        id_barang: barangId
+      }
+    });
+
+    const barang = await Barang.findByPk(barangId);
+    if (!barang) return;
+
+    // Update status berdasarkan peminjaman aktif
+    let newStatus;
+    if (peminjamanAktif) {
+      newStatus = 'dipinjam';
+    } else {
+      // Jika tidak ada peminjaman aktif, set status berdasarkan kondisi
+      if (barang.kondisi === 'rusak_berat') {
+        newStatus = 'rusak';
+      } else {
+        newStatus = 'tersedia';
+      }
+    }
+
+    // Update status jika berbeda
+    if (barang.status !== newStatus) {
+      await barang.update({ status: newStatus });
+    }
+  } catch (error) {
+    console.error('Error updating status barang:', error);
+  }
+};
 
 // Mendapatkan semua barang
 exports.dapatkanSemuaBarang = async (req, res) => {
@@ -49,18 +91,42 @@ exports.dapatkanSemuaBarang = async (req, res) => {
       order: [['kode', 'ASC']]
     });
     
+    // Update status semua barang berdasarkan peminjaman aktif
+    for (const item of semuaBarang) {
+      await updateStatusBarangBerdasarkanPeminjaman(item.id);
+    }
+    
+    // Ambil ulang data barang setelah update status
+    const semuaBarangUpdated = await Barang.findAll({
+      where: kondisiPencarian,
+      include: [
+        { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
+        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
+      ],
+      order: [['kode', 'ASC']]
+    });
+    
     // Kelompokkan barang berdasarkan prefix kode (3 huruf pertama)
     const barangGrouped = {};
     
-    semuaBarang.forEach(item => {
+    semuaBarangUpdated.forEach(item => {
       const itemData = item.toJSON();
-      // Konversi kondisi ke format frontend
+      // Konversi kondisi dan status ke format frontend
       const kondisiFrontendMapping = {
         'baik': 'Baik',
         'rusak_ringan': 'Rusak Ringan',
         'rusak_berat': 'Rusak Berat'
       };
+      
+      const statusFrontendMapping = {
+        'tersedia': 'Tersedia',
+        'dipinjam': 'Dipinjam',
+        'perbaikan': 'Perbaikan',
+        'dihapuskan': 'Dihapuskan'
+      };
+      
       itemData.kondisi = kondisiFrontendMapping[itemData.kondisi] || itemData.kondisi;
+      itemData.status = statusFrontendMapping[itemData.status] || itemData.status;
       
       // Ambil prefix kode (3 huruf pertama sebelum tanda -)
       const prefix = itemData.kode.split('-')[0];
@@ -147,16 +213,24 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
       order: [['nama', 'ASC']]
     });
     
-    // Konversi kondisi ke format frontend
+    // Konversi kondisi dan status ke format frontend
     const kondisiFrontendMapping = {
       'baik': 'Baik',
       'rusak_ringan': 'Rusak Ringan',
       'rusak_berat': 'Rusak Berat'
     };
     
+    const statusFrontendMapping = {
+      'tersedia': 'Tersedia',
+      'dipinjam': 'Dipinjam',
+      'perbaikan': 'Perbaikan',
+      'dihapuskan': 'Dihapuskan'
+    };
+    
     const barangData = barang.map(item => {
       const itemData = item.toJSON();
       itemData.kondisi = kondisiFrontendMapping[itemData.kondisi] || itemData.kondisi;
+      itemData.status = statusFrontendMapping[itemData.status] || itemData.status;
       // Tambahkan jumlah_tersedia yang sama dengan jumlah
       itemData.jumlah_tersedia = itemData.jumlah;
       return itemData;
@@ -181,6 +255,9 @@ exports.dapatkanBarangById = async (req, res) => {
   try {
     const { id } = req.params;
     
+    // Update status barang berdasarkan peminjaman aktif
+    await updateStatusBarangBerdasarkanPeminjaman(id);
+    
     const barang = await Barang.findByPk(id, {
       include: [
         { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
@@ -195,15 +272,23 @@ exports.dapatkanBarangById = async (req, res) => {
       });
     }
     
-    // Konversi kondisi ke format frontend
+    // Konversi kondisi dan status ke format frontend
     const kondisiFrontendMapping = {
       'baik': 'Baik',
       'rusak_ringan': 'Rusak Ringan',
       'rusak_berat': 'Rusak Berat'
     };
     
+    const statusFrontendMapping = {
+      'tersedia': 'Tersedia',
+      'dipinjam': 'Dipinjam',
+      'perbaikan': 'Perbaikan',
+      'dihapuskan': 'Dihapuskan'
+    };
+    
     const barangData = barang.toJSON();
     barangData.kondisi = kondisiFrontendMapping[barangData.kondisi] || barangData.kondisi;
+    barangData.status = statusFrontendMapping[barangData.status] || barangData.status;
     
     // Tambahkan jumlah_tersedia yang sama dengan jumlah
     barangData.jumlah_tersedia = barangData.jumlah;
@@ -227,10 +312,11 @@ exports.dapatkanBarangById = async (req, res) => {
       ]
     });
     
-    // Konversi kondisi untuk unit terkait
+    // Konversi kondisi dan status untuk unit terkait
     const relatedUnitsData = relatedUnits.map(unit => {
       const unitData = unit.toJSON();
       unitData.kondisi = kondisiFrontendMapping[unitData.kondisi] || unitData.kondisi;
+      unitData.status = statusFrontendMapping[unitData.status] || unitData.status;
       unitData.jumlah_tersedia = unitData.jumlah;
       return unitData;
     });
@@ -405,7 +491,7 @@ exports.buatBarang = async (req, res) => {
 exports.updateBarang = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nama, kode, deskripsi, jumlah, kondisi, tanggal_perolehan, harga_perolehan, id_kategori, id_lokasi } = req.body;
+    const { nama, kode, deskripsi, jumlah, kondisi, status, tanggal_perolehan, harga_perolehan, id_kategori, id_lokasi } = req.body;
     
     // Cek apakah barang ada
     const barang = await Barang.findByPk(id);
@@ -468,7 +554,17 @@ exports.updateBarang = async (req, res) => {
       'Rusak Berat': 'rusak_berat'
     };
     
+    // Konversi status ke format database
+    const statusMapping = {
+      'Tersedia': 'tersedia',
+      'Dipinjam': 'dipinjam',
+      'Perbaikan': 'perbaikan',
+      'Rusak': 'rusak',
+      'Dihapuskan': 'dihapuskan'
+    };
+    
     const kondisiDatabase = kondisi ? kondisiMapping[kondisi] || kondisi.toLowerCase().replace(' ', '_') : barang.kondisi;
+    const statusDatabase = status ? statusMapping[status] || status.toLowerCase().replace(' ', '_') : barang.status;
     
     // Update barang
     await barang.update({
@@ -477,6 +573,7 @@ exports.updateBarang = async (req, res) => {
       deskripsi: deskripsi !== undefined ? deskripsi : barang.deskripsi,
       jumlah: jumlah !== undefined ? jumlah : barang.jumlah,
       kondisi: kondisiDatabase,
+      status: statusDatabase,
       tanggal_perolehan: tanggal_perolehan || barang.tanggal_perolehan,
       harga_perolehan: harga_perolehan !== undefined ? harga_perolehan : barang.harga_perolehan,
       gambar: gambarPath,
@@ -492,15 +589,23 @@ exports.updateBarang = async (req, res) => {
       ]
     });
     
-    // Konversi kondisi ke format frontend
+    // Konversi kondisi dan status ke format frontend
     const kondisiFrontendMapping = {
       'baik': 'Baik',
       'rusak_ringan': 'Rusak Ringan',
       'rusak_berat': 'Rusak Berat'
     };
     
+    const statusFrontendMapping = {
+      'tersedia': 'Tersedia',
+      'dipinjam': 'Dipinjam',
+      'perbaikan': 'Perbaikan',
+      'dihapuskan': 'Dihapuskan'
+    };
+    
     const barangData = barangUpdated.toJSON();
     barangData.kondisi = kondisiFrontendMapping[barangData.kondisi] || barangData.kondisi;
+    barangData.status = statusFrontendMapping[barangData.status] || barangData.status;
     // Tambahkan jumlah_tersedia yang sama dengan jumlah
     barangData.jumlah_tersedia = barangData.jumlah;
     

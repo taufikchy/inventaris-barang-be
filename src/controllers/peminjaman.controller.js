@@ -271,7 +271,7 @@ exports.persetujuanPeminjaman = async (req, res) => {
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: DetailPeminjaman, include: [{ model: Barang }] }]
+      include: [{ model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }]
     });
     
     if (!peminjaman) {
@@ -300,8 +300,8 @@ exports.persetujuanPeminjaman = async (req, res) => {
     // Jika disetujui, ubah status menjadi dipinjam dan kurangi jumlah barang
     if (status === 'disetujui') {
       // Cek ketersediaan semua barang dalam detail peminjaman
-      for (const detail of peminjaman.DetailPeminjaman) {
-        const barang = detail.Barang;
+      for (const detail of peminjaman.detail_peminjaman) {
+        const barang = detail.barang;
         if (barang.jumlah < detail.jumlah) {
           return res.status(400).json({
             sukses: false,
@@ -311,9 +311,13 @@ exports.persetujuanPeminjaman = async (req, res) => {
       }
       
       // Kurangi stok semua barang
-      for (const detail of peminjaman.DetailPeminjaman) {
-        const barang = detail.Barang;
-        await barang.update({ jumlah: barang.jumlah - detail.jumlah });
+      for (const detail of peminjaman.detail_peminjaman) {
+        const barang = detail.barang;
+        const newJumlah = barang.jumlah - detail.jumlah;
+        await barang.update({ 
+          jumlah: newJumlah,
+          status: newJumlah <= 0 ? 'dipinjam' : 'tersedia' // Update status berdasarkan stok
+        });
       }
       
       // Update status menjadi dipinjam
@@ -326,8 +330,8 @@ exports.persetujuanPeminjaman = async (req, res) => {
     // Dapatkan data peminjaman yang sudah diupdate dengan relasi
     const peminjamanUpdated = await Peminjaman.findByPk(id, {
       include: [
-        { model: Pengguna, attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: DetailPeminjaman, include: [{ model: Barang }] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
       ]
     });
     
@@ -389,7 +393,7 @@ exports.kembalikanBarang = async (req, res) => {
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: DetailPeminjaman, include: [{ model: Barang }] }]
+      include: [{ model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }]
     });
     
     if (!peminjaman) {
@@ -415,10 +419,12 @@ exports.kembalikanBarang = async (req, res) => {
     });
     
     // Kembalikan stok semua barang yang dipinjam
-    for (const detail of peminjaman.DetailPeminjaman) {
-      const barang = detail.Barang;
+    for (const detail of peminjaman.detail_peminjaman) {
+      const barang = detail.barang;
+      const newJumlah = barang.jumlah + detail.jumlah;
       await barang.update({ 
-        jumlah: barang.jumlah + detail.jumlah
+        jumlah: newJumlah,
+        status: newJumlah > 0 ? 'tersedia' : 'dipinjam' // Update status berdasarkan stok
       });
       
       // Update kondisi saat kembali di detail peminjaman
@@ -430,8 +436,8 @@ exports.kembalikanBarang = async (req, res) => {
     // Dapatkan data peminjaman yang sudah diupdate dengan relasi
     const peminjamanUpdated = await Peminjaman.findByPk(id, {
       include: [
-        { model: Pengguna, attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: DetailPeminjaman, include: [{ model: Barang }] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
       ]
     });
     
