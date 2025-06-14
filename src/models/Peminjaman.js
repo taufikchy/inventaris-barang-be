@@ -117,6 +117,19 @@ const DetailPeminjaman = sequelize.define('DetailPeminjaman', {
     type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
     allowNull: true
   },
+  kondisi_saat_pinjam: {
+    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak'),
+    defaultValue: 'baik'
+  },
+  kondisi_saat_kembali: {
+    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak'),
+    allowNull: true
+  },
+  catatan_kondisi: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Catatan kondisi barang saat pengembalian'
+  },
   catatan: {
     type: DataTypes.TEXT,
     allowNull: true
