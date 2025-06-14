@@ -51,11 +51,11 @@ router.get('/', semuaPengguna, peminjamanController.dapatkanSemuaPeminjaman);
 // Rute untuk mendapatkan peminjaman berdasarkan ID (semua pengguna bisa melihat)
 router.get('/:id', semuaPengguna, peminjamanController.dapatkanPeminjamanById);
 
-// Rute untuk membuat peminjaman baru (Admin dan Toolman)
-router.post('/', adminAtauToolman, peminjamanController.buatPeminjaman);
+// Rute untuk membuat peminjaman baru (Admin, Toolman, dan Kepala Lab)
+router.post('/', adminToolmanAtauKepalaLab, peminjamanController.buatPeminjaman);
 
-// Rute untuk upload surat peminjaman (Admin dan Toolman)
-router.post('/:id/upload-surat', adminAtauToolman, upload.single('surat_peminjaman'), peminjamanController.uploadSuratPeminjaman);
+// Rute untuk upload surat peminjaman (Admin, Toolman, dan Kepala Lab)
+router.post('/:id/upload-surat', adminToolmanAtauKepalaLab, upload.single('surat_peminjaman'), peminjamanController.uploadSuratPeminjaman);
 
 // Rute untuk menyetujui/menolak peminjaman (hanya Kepala Lab)
 router.put('/:id/persetujuan', hanyaKepalaLab, peminjamanController.persetujuanPeminjaman);
@@ -69,7 +69,7 @@ router.put('/:id', adminToolmanAtauKepalaLab, peminjamanController.updatePeminja
 // Rute untuk menghapus peminjaman (hanya Kepala Lab)
 router.delete('/:id', hanyaKepalaLab, peminjamanController.hapusPeminjaman);
 
-// Rute untuk mencetak surat peminjaman (Admin dan Toolman)
-router.get('/:id/cetak-surat', adminAtauToolman, peminjamanController.cetakSuratPeminjaman);
+// Rute untuk mencetak surat peminjaman (Admin, Toolman, dan Kepala Lab)
+router.get('/:id/cetak-surat', adminToolmanAtauKepalaLab, peminjamanController.cetakSuratPeminjaman);
 
 module.exports = router;
