@@ -71,10 +71,13 @@ exports.getDashboardStats = async (req, res) => {
       raw: true
     });
     
-    // Dapatkan peminjaman terbaru (5 terakhir)
+    // Dapatkan peminjaman aktif (status dipinjam)
     const recentPeminjaman = await Peminjaman.findAll({
       limit: 5,
-      order: [['createdAt', 'DESC']],
+      where: {
+        status: 'dipinjam'
+      },
+      order: [['tanggal_pinjam', 'DESC']],
       attributes: [
         'id', 'nama_peminjam', 'kontak_peminjam', 'kelas_peminjam', 
         'tanggal_pinjam', 'tanggal_kembali_harapan', 'tanggal_kembali_aktual', 

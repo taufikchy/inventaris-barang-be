@@ -3,47 +3,8 @@ const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 
-// Fungsi untuk mengecek dan mengupdate status barang berdasarkan peminjaman aktif
-const updateStatusBarangBerdasarkanPeminjaman = async (barangId) => {
-  try {
-    // Cek apakah ada peminjaman aktif untuk barang ini
-    const peminjamanAktif = await DetailPeminjaman.findOne({
-      include: [{
-        model: Peminjaman,
-        as: 'peminjaman',
-        where: {
-          status: 'dipinjam'
-        }
-      }],
-      where: {
-        id_barang: barangId
-      }
-    });
-
-    const barang = await Barang.findByPk(barangId);
-    if (!barang) return;
-
-    // Update status berdasarkan peminjaman aktif
-    let newStatus;
-    if (peminjamanAktif) {
-      newStatus = 'dipinjam';
-    } else {
-      // Jika tidak ada peminjaman aktif, set status berdasarkan kondisi
-      if (barang.kondisi === 'rusak_berat') {
-        newStatus = 'rusak';
-      } else {
-        newStatus = 'tersedia';
-      }
-    }
-
-    // Update status jika berbeda
-    if (barang.status !== newStatus) {
-      await barang.update({ status: newStatus });
-    }
-  } catch (error) {
-    console.error('Error updating status barang:', error);
-  }
-};
+// Status barang sekarang dikelola otomatis melalui model dan controller peminjaman
+// Tidak perlu fungsi update status manual yang menyebabkan performa lambat
 
 // Mendapatkan semua barang
 exports.dapatkanSemuaBarang = async (req, res) => {
@@ -81,23 +42,9 @@ exports.dapatkanSemuaBarang = async (req, res) => {
       kondisiPencarian.kondisi = kondisi;
     }
     
-    // Dapatkan semua barang untuk dikelompokkan
+    // Dapatkan semua barang dengan status yang sudah benar
+    // Tidak perlu update status satu per satu karena status sudah dikelola otomatis
     const semuaBarang = await Barang.findAll({
-      where: kondisiPencarian,
-      include: [
-        { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
-        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
-      ],
-      order: [['kode', 'ASC']]
-    });
-    
-    // Update status semua barang berdasarkan peminjaman aktif
-    for (const item of semuaBarang) {
-      await updateStatusBarangBerdasarkanPeminjaman(item.id);
-    }
-    
-    // Ambil ulang data barang setelah update status
-    const semuaBarangUpdated = await Barang.findAll({
       where: kondisiPencarian,
       include: [
         { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
@@ -109,7 +56,7 @@ exports.dapatkanSemuaBarang = async (req, res) => {
     // Kelompokkan barang berdasarkan prefix kode (3 huruf pertama)
     const barangGrouped = {};
     
-    semuaBarangUpdated.forEach(item => {
+    semuaBarang.forEach(item => {
       const itemData = item.toJSON();
       // Konversi kondisi dan status ke format frontend
       const kondisiFrontendMapping = {
@@ -254,9 +201,6 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
 exports.dapatkanBarangById = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Update status barang berdasarkan peminjaman aktif
-    await updateStatusBarangBerdasarkanPeminjaman(id);
     
     const barang = await Barang.findByPk(id, {
       include: [
@@ -559,7 +503,7 @@ exports.updateBarang = async (req, res) => {
       'Tersedia': 'tersedia',
       'Dipinjam': 'dipinjam',
       'Perbaikan': 'perbaikan',
-      'Rusak': 'rusak',
+      'Rusak': 'perbaikan',
       'Dihapuskan': 'dihapuskan'
     };
     
