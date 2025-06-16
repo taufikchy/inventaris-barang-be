@@ -87,6 +87,7 @@ exports.dapatkanSemuaBarang = async (req, res) => {
           jumlah: 0,
           kondisi: itemData.kondisi,
           tanggal_perolehan: itemData.tanggal_perolehan,
+          tahun_pengadaan: itemData.tahun_pengadaan,
           harga_perolehan: itemData.harga_perolehan,
           gambar: itemData.gambar,
           id_kategori: itemData.id_kategori,
@@ -142,17 +143,32 @@ exports.dapatkanSemuaBarang = async (req, res) => {
 // Mendapatkan semua barang tanpa pagination (untuk dropdown)
 exports.dapatkanSemuaBarangDropdown = async (req, res) => {
   try {
-    const { tersedia } = req.query;
+    const { tersedia, kategori, lokasi, kondisi } = req.query;
     
-    let kondisi = {};
+    let kondisiPencarian = {};
     
     // Jika parameter tersedia=true, hanya tampilkan barang yang tersedia
     if (tersedia === 'true') {
-      kondisi.jumlah = { [Op.gt]: 0 };
+      kondisiPencarian.jumlah = { [Op.gt]: 0 };
+    }
+    
+    // Filter berdasarkan kategori
+    if (kategori) {
+      kondisiPencarian.id_kategori = kategori;
+    }
+    
+    // Filter berdasarkan lokasi
+    if (lokasi) {
+      kondisiPencarian.id_lokasi = lokasi;
+    }
+    
+    // Filter berdasarkan kondisi
+    if (kondisi) {
+      kondisiPencarian.kondisi = kondisi;
     }
     
     const barang = await Barang.findAll({
-      where: kondisi,
+      where: kondisiPencarian,
       include: [
         { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
@@ -287,7 +303,7 @@ exports.dapatkanBarangById = async (req, res) => {
 // Membuat barang baru
 exports.buatBarang = async (req, res) => {
   try {
-    const { nama, deskripsi, jumlah, kondisi, tanggal_perolehan, harga_perolehan, id_kategori, id_lokasi } = req.body;
+    const { nama, deskripsi, jumlah, kondisi, tanggal_perolehan, tahun_pengadaan, harga_perolehan, id_kategori, id_lokasi } = req.body;
     
     // Validasi input
     if (!nama || !id_kategori || !id_lokasi) {
@@ -374,6 +390,9 @@ exports.buatBarang = async (req, res) => {
       // Buat kode barang final untuk unit ini
       const kodeUnit = `${prefix}-${formattedNumber}`;
       
+      // Validasi harga_perolehan - konversi string kosong ke null
+      const validHargaPerolehan = harga_perolehan === '' || harga_perolehan === null ? null : harga_perolehan;
+      
       // Buat barang baru dengan kode unik
       const barangBaru = await Barang.create({
         nama,
@@ -382,7 +401,8 @@ exports.buatBarang = async (req, res) => {
         jumlah: 1, // Setiap record mewakili 1 unit barang
         kondisi: kondisiDatabase,
         tanggal_perolehan,
-        harga_perolehan,
+        tahun_pengadaan,
+        harga_perolehan: validHargaPerolehan,
         gambar: gambarPath,
         id_kategori,
         id_lokasi
@@ -435,7 +455,7 @@ exports.buatBarang = async (req, res) => {
 exports.updateBarang = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nama, kode, deskripsi, jumlah, kondisi, status, tanggal_perolehan, harga_perolehan, id_kategori, id_lokasi } = req.body;
+    const { nama, kode, deskripsi, jumlah, kondisi, status, tanggal_perolehan, tahun_pengadaan, harga_perolehan, id_kategori, id_lokasi } = req.body;
     
     // Cek apakah barang ada
     const barang = await Barang.findByPk(id);
@@ -510,6 +530,11 @@ exports.updateBarang = async (req, res) => {
     const kondisiDatabase = kondisi ? kondisiMapping[kondisi] || kondisi.toLowerCase().replace(' ', '_') : barang.kondisi;
     const statusDatabase = status ? statusMapping[status] || status.toLowerCase().replace(' ', '_') : barang.status;
     
+    // Validasi harga_perolehan - konversi string kosong ke null
+    const validHargaPerolehan = harga_perolehan !== undefined ? 
+      (harga_perolehan === '' || harga_perolehan === null ? null : harga_perolehan) : 
+      barang.harga_perolehan;
+    
     // Update barang
     await barang.update({
       nama: nama || barang.nama,
@@ -519,7 +544,8 @@ exports.updateBarang = async (req, res) => {
       kondisi: kondisiDatabase,
       status: statusDatabase,
       tanggal_perolehan: tanggal_perolehan || barang.tanggal_perolehan,
-      harga_perolehan: harga_perolehan !== undefined ? harga_perolehan : barang.harga_perolehan,
+      tahun_pengadaan: tahun_pengadaan !== undefined ? tahun_pengadaan : barang.tahun_pengadaan,
+      harga_perolehan: validHargaPerolehan,
       gambar: gambarPath,
       id_kategori: id_kategori || barang.id_kategori,
       id_lokasi: id_lokasi || barang.id_lokasi

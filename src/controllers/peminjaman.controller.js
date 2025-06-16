@@ -385,7 +385,7 @@ exports.cetakSuratPeminjaman = async (req, res) => {
 exports.kembalikanBarang = async (req, res) => {
   try {
     const { id } = req.params;
-    const { kondisi_barang, catatan } = req.body;
+    const { kondisi_barang, catatan, detail_kondisi } = req.body;
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
@@ -422,8 +422,24 @@ exports.kembalikanBarang = async (req, res) => {
       });
       
       // Update kondisi saat kembali di detail peminjaman
+      let kondisiKembali = detail.kondisi_saat_pinjam; // default
+      let catatanKondisi = null;
+      
+      // Jika ada detail_kondisi array, cari yang sesuai dengan detail ini
+      if (detail_kondisi && Array.isArray(detail_kondisi)) {
+        const detailKondisiItem = detail_kondisi.find(dk => dk.id_detail === detail.id);
+        if (detailKondisiItem) {
+          kondisiKembali = detailKondisiItem.kondisi_saat_kembali || detail.kondisi_saat_pinjam;
+          catatanKondisi = detailKondisiItem.catatan_kondisi || null;
+        }
+      } else if (kondisi_barang) {
+        // Fallback untuk backward compatibility
+        kondisiKembali = kondisi_barang;
+      }
+      
       await detail.update({
-        kondisi_saat_kembali: kondisi_barang || detail.kondisi_saat_pinjam
+        kondisi_saat_kembali: kondisiKembali,
+        catatan_kondisi: catatanKondisi
       });
     }
     

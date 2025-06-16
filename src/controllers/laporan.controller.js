@@ -1,4 +1,4 @@
-const { Barang, Kategori, Lokasi, Peminjaman, Pengguna } = require('../models');
+const { Barang, Kategori, Lokasi, Peminjaman, Pengguna, DetailPeminjaman } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 
 // Mendapatkan laporan inventaris
@@ -140,7 +140,8 @@ exports.getLaporanPeminjaman = async (req, res) => {
       where: kondisi,
       include: [
         { model: Barang, as: 'barang', include: [{ model: Kategori, as: 'kategori' }] },
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, as: 'detail_peminjaman' }
       ],
       order: [['tanggal_pinjam', 'DESC']]
     });
