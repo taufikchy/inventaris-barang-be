@@ -142,17 +142,32 @@ exports.dapatkanSemuaBarang = async (req, res) => {
 // Mendapatkan semua barang tanpa pagination (untuk dropdown)
 exports.dapatkanSemuaBarangDropdown = async (req, res) => {
   try {
-    const { tersedia } = req.query;
+    const { tersedia, kategori, lokasi, kondisi } = req.query;
     
-    let kondisi = {};
+    let kondisiPencarian = {};
     
     // Jika parameter tersedia=true, hanya tampilkan barang yang tersedia
     if (tersedia === 'true') {
-      kondisi.jumlah = { [Op.gt]: 0 };
+      kondisiPencarian.jumlah = { [Op.gt]: 0 };
+    }
+    
+    // Filter berdasarkan kategori
+    if (kategori) {
+      kondisiPencarian.id_kategori = kategori;
+    }
+    
+    // Filter berdasarkan lokasi
+    if (lokasi) {
+      kondisiPencarian.id_lokasi = lokasi;
+    }
+    
+    // Filter berdasarkan kondisi
+    if (kondisi) {
+      kondisiPencarian.kondisi = kondisi;
     }
     
     const barang = await Barang.findAll({
-      where: kondisi,
+      where: kondisiPencarian,
       include: [
         { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
