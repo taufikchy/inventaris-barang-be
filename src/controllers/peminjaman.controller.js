@@ -385,11 +385,11 @@ exports.cetakSuratPeminjaman = async (req, res) => {
 exports.kembalikanBarang = async (req, res) => {
   try {
     const { id } = req.params;
-    const { kondisi_barang, catatan, detail_kondisi } = req.body;
+    const { kondisi_barang, catatan } = req.body;
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }]
+      include: [{ model: DetailPeminjaman, include: [{ model: Barang }] }]
     });
     
     if (!peminjaman) {
@@ -415,39 +415,23 @@ exports.kembalikanBarang = async (req, res) => {
     });
     
     // Kembalikan stok semua barang yang dipinjam
-    for (const detail of peminjaman.detail_peminjaman) {
-      const barang = detail.barang;
+    for (const detail of peminjaman.DetailPeminjaman) {
+      const barang = detail.Barang;
       await barang.update({ 
         jumlah: barang.jumlah + detail.jumlah
       });
       
       // Update kondisi saat kembali di detail peminjaman
-      let kondisiKembali = detail.kondisi_saat_pinjam; // default
-      let catatanKondisi = null;
-      
-      // Jika ada detail_kondisi array, cari yang sesuai dengan detail ini
-      if (detail_kondisi && Array.isArray(detail_kondisi)) {
-        const detailKondisiItem = detail_kondisi.find(dk => dk.id_detail === detail.id);
-        if (detailKondisiItem) {
-          kondisiKembali = detailKondisiItem.kondisi_saat_kembali || detail.kondisi_saat_pinjam;
-          catatanKondisi = detailKondisiItem.catatan_kondisi || null;
-        }
-      } else if (kondisi_barang) {
-        // Fallback untuk backward compatibility
-        kondisiKembali = kondisi_barang;
-      }
-      
       await detail.update({
-        kondisi_saat_kembali: kondisiKembali,
-        catatan_kondisi: catatanKondisi
+        kondisi_saat_kembali: kondisi_barang || detail.kondisi_saat_pinjam
       });
     }
     
     // Dapatkan data peminjaman yang sudah diupdate dengan relasi
     const peminjamanUpdated = await Peminjaman.findByPk(id, {
       include: [
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
+        { model: Pengguna, attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, include: [{ model: Barang }] }
       ]
     });
     
