@@ -310,13 +310,10 @@ exports.persetujuanPeminjaman = async (req, res) => {
         }
       }
       
-      // Kurangi stok semua barang dan update status menjadi dipinjam
+      // Kurangi stok semua barang
       for (const detail of peminjaman.detail_peminjaman) {
         const barang = detail.barang;
-        await barang.update({ 
-          jumlah: barang.jumlah - detail.jumlah,
-          status: 'dipinjam' // Update status barang menjadi dipinjam ketika disetujui
-        });
+        await barang.update({ jumlah: barang.jumlah - detail.jumlah });
       }
       
       // Update status menjadi dipinjam
@@ -388,7 +385,7 @@ exports.cetakSuratPeminjaman = async (req, res) => {
 exports.kembalikanBarang = async (req, res) => {
   try {
     const { id } = req.params;
-    const { catatan, detail_kondisi } = req.body;
+    const { kondisi_barang, catatan } = req.body;
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
@@ -410,14 +407,14 @@ exports.kembalikanBarang = async (req, res) => {
       });
     }
     
-    // Update status peminjaman dengan catatan pengembalian umum
+    // Update status peminjaman
     await peminjaman.update({
       status: 'dikembalikan',
       tanggal_kembali_aktual: new Date(),
-      catatan: catatan || peminjaman.catatan
+      catatan: catatan ? `${peminjaman.catatan || ''} | Catatan pengembalian: ${catatan}` : peminjaman.catatan
     });
     
-    // Kembalikan stok dan update kondisi detail barang
+    // Kembalikan stok semua barang yang dipinjam
     for (const detail of peminjaman.detail_peminjaman) {
       const barang = detail.barang;
       await barang.update({ 
@@ -425,13 +422,9 @@ exports.kembalikanBarang = async (req, res) => {
         status: 'tersedia' // Update status barang menjadi tersedia setelah dikembalikan
       });
       
-      // Cari detail kondisi yang sesuai dari frontend
-      const detailKondisi = detail_kondisi?.find(dk => dk.id_detail === detail.id);
-      
-      // Update kondisi saat kembali dan catatan kondisi di detail peminjaman
+      // Update kondisi saat kembali di detail peminjaman
       await detail.update({
-        kondisi_saat_kembali: detailKondisi?.kondisi_saat_kembali || detail.kondisi_saat_pinjam,
-        catatan_kondisi: detailKondisi?.catatan_kondisi || null
+        kondisi_saat_kembali: kondisi_barang || detail.kondisi_saat_pinjam
       });
     }
     
@@ -574,7 +567,7 @@ exports.hapusPeminjaman = async (req, res) => {
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: Barang, as: 'barang' }]
+      include: [{ model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }]
     });
     
     if (!peminjaman) {
@@ -586,8 +579,13 @@ exports.hapusPeminjaman = async (req, res) => {
     
     // Jika status masih dipinjam, kembalikan jumlah barang
     if (peminjaman.status === 'dipinjam') {
-      const barang = peminjaman.barang;
-      await barang.update({ jumlah: barang.jumlah + 1 });
+      for (const detail of peminjaman.detail_peminjaman) {
+        const barang = detail.barang;
+        await barang.update({ 
+          jumlah: barang.jumlah + detail.jumlah,
+          status: 'tersedia'
+        });
+      }
     }
     
     // Hapus peminjaman
