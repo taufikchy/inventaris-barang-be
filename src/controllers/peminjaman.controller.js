@@ -354,8 +354,8 @@ exports.cetakSuratPeminjaman = async (req, res) => {
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
       include: [
-        { model: Pengguna, attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: DetailPeminjaman, include: [{ model: Barang }] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
       ]
     });
     
@@ -389,7 +389,7 @@ exports.kembalikanBarang = async (req, res) => {
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: DetailPeminjaman, include: [{ model: Barang }] }]
+      include: [{ model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }]
     });
     
     if (!peminjaman) {
@@ -415,8 +415,8 @@ exports.kembalikanBarang = async (req, res) => {
     });
     
     // Kembalikan stok semua barang yang dipinjam
-    for (const detail of peminjaman.DetailPeminjaman) {
-      const barang = detail.Barang;
+    for (const detail of peminjaman.detail_peminjaman) {
+      const barang = detail.barang;
       await barang.update({ 
         jumlah: barang.jumlah + detail.jumlah
       });
@@ -446,8 +446,8 @@ exports.kembalikanBarang = async (req, res) => {
     // Dapatkan data peminjaman yang sudah diupdate dengan relasi
     const peminjamanUpdated = await Peminjaman.findByPk(id, {
       include: [
-        { model: Pengguna, attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: DetailPeminjaman, include: [{ model: Barang }] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }
       ]
     });
     
@@ -484,7 +484,7 @@ exports.updatePeminjaman = async (req, res) => {
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: DetailPeminjaman, include: [{ model: Barang }] }]
+      include: [{ model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }]
     });
     
     if (!peminjaman) {
