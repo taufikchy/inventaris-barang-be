@@ -4,18 +4,22 @@ const { Op } = require('sequelize');
 // Mendapatkan semua pengguna
 exports.dapatkanSemuaPengguna = async (req, res) => {
   try {
-    const { cari, halaman = 1, batas = 10 } = req.query;
+    const { cari, halaman = 1, batas = 10, peran } = req.query;
     const offset = (halaman - 1) * batas;
     
-    // Buat kondisi pencarian jika parameter cari ada
-    const kondisi = cari
-      ? {
-          [Op.or]: [
-            { nama: { [Op.like]: `%${cari}%` } },
-            { nama_pengguna: { [Op.like]: `%${cari}%` } }
-          ]
-        }
-      : {};
+    // Buat kondisi pencarian dan filter peran
+    const kondisi = {};
+
+    if (cari) {
+      kondisi[Op.or] = [
+        { nama: { [Op.like]: `%${cari}%` } },
+        { nama_pengguna: { [Op.like]: `%${cari}%` } }
+      ];
+    }
+
+    if (peran) {
+      kondisi.peran = peran;
+    }
     
     // Hitung total pengguna
     const totalPengguna = await Pengguna.count({ where: kondisi });
