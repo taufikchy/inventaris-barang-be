@@ -136,7 +136,7 @@ exports.buatPengguna = async (req, res) => {
 exports.perbaruiPengguna = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nama, nama_pengguna, peran, aktif } = req.body;
+    const { nama, nama_pengguna, peran, aktif, kata_sandi } = req.body;
     
     // Cari pengguna yang akan diperbarui
     const pengguna = await Pengguna.findByPk(id);
@@ -170,6 +170,7 @@ exports.perbaruiPengguna = async (req, res) => {
     if (nama_pengguna) pengguna.nama_pengguna = nama_pengguna;
     if (peran) pengguna.peran = peran;
     if (aktif !== undefined) pengguna.aktif = aktif;
+    if (kata_sandi) pengguna.kata_sandi = kata_sandi; // Update password if provided
     
     await pengguna.save();
     
