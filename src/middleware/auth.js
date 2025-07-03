@@ -114,12 +114,12 @@ exports.adminAtauToolman = (req, res, next) => {
 
 // Middleware untuk memeriksa peran Admin, Toolman, atau Kepala Lab
 exports.adminToolmanAtauKepalaLab = (req, res, next) => {
-  if (req.pengguna && (req.pengguna.peran === 'admin' || req.pengguna.peran === 'toolman' || req.pengguna.peran === 'kepala_lab')) {
+  if (req.pengguna && (req.pengguna.peran === 'admin' || req.pengguna.peran === 'toolman' || req.pengguna.peran === 'kepala_lab' || req.pengguna.peran === 'sarana')) {
     next();
   } else {
     return res.status(403).json({
       sukses: false,
-      pesan: 'Akses ditolak. Hanya Admin, Toolman, atau Kepala Lab yang diizinkan.'
+      pesan: 'Akses ditolak. Hanya Admin, Toolman, Kepala Lab, atau Sarana yang diizinkan.'
     });
   }
 };

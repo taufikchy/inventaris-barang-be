@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const penggunaController = require('../controllers/pengguna.controller');
-const { verifikasiToken, hanyaKepalaLab, semuaPengguna } = require('../middleware/auth');
+const { verifikasiToken, hanyaKepalaLab, semuaPengguna, adminToolmanAtauKepalaLab } = require('../middleware/auth');
 
 // Semua rute di bawah ini memerlukan autentikasi
 router.use(verifikasiToken);
@@ -10,21 +10,21 @@ router.use(verifikasiToken);
 router.get('/dropdown', semuaPengguna, penggunaController.dapatkanSemuaPenggunaDropdown);
 
 // Rute untuk mendapatkan semua pengguna (hanya kepala lab)
-router.get('/', hanyaKepalaLab, penggunaController.dapatkanSemuaPengguna);
+router.get('/', adminToolmanAtauKepalaLab, penggunaController.dapatkanSemuaPengguna);
 
 // Rute untuk mendapatkan pengguna berdasarkan ID (hanya kepala lab)
-router.get('/:id', hanyaKepalaLab, penggunaController.dapatkanPenggunaById);
+router.get('/:id', adminToolmanAtauKepalaLab, penggunaController.dapatkanPenggunaById);
 
 // Rute untuk membuat pengguna baru (hanya kepala lab)
-router.post('/', hanyaKepalaLab, penggunaController.buatPengguna);
+router.post('/', adminToolmanAtauKepalaLab, penggunaController.buatPengguna);
 
 // Rute untuk memperbarui pengguna (hanya kepala lab)
-router.put('/:id', hanyaKepalaLab, penggunaController.perbaruiPengguna);
+router.put('/:id', adminToolmanAtauKepalaLab, penggunaController.perbaruiPengguna);
 
 // Rute untuk reset kata sandi pengguna (hanya kepala lab)
-router.post('/:id/reset-kata-sandi', hanyaKepalaLab, penggunaController.resetKataSandi);
+router.post('/:id/reset-kata-sandi', adminToolmanAtauKepalaLab, penggunaController.resetKataSandi);
 
 // Rute untuk menghapus pengguna (hanya kepala lab)
-router.delete('/:id', hanyaKepalaLab, penggunaController.hapusPengguna);
+router.delete('/:id', adminToolmanAtauKepalaLab, penggunaController.hapusPengguna);
 
 module.exports = router;
