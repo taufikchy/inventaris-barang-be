@@ -434,13 +434,18 @@ exports.buatBarang = async (req, res) => {
     // Buat daftar kode barang yang dibuat
     const kodeBarangList = barangBaruArray.map(item => item.kode);
     
-    res.status(201).json({
+    // Pastikan format respons sesuai dengan yang diharapkan oleh middleware activityLogger
+    // Gunakan field 'sukses' untuk menandakan operasi berhasil
+    const response = {
       sukses: true,
       pesan: `${jumlahBarang} unit barang berhasil ditambahkan dengan kode ${kodeBarangList[0]}${jumlahBarang > 1 ? ` hingga ${kodeBarangList[kodeBarangList.length-1]}` : ''}.`,
       data: barangData,
       jumlah_dibuat: jumlahBarang,
       kode_barang: kodeBarangList
-    });
+    };
+    
+    console.log('Response barang.buatBarang:', response);
+    res.status(201).json(response);
     
   } catch (error) {
     console.error('Kesalahan membuat barang:', error);
