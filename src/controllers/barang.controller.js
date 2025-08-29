@@ -612,6 +612,18 @@ exports.hapusBarang = async (req, res) => {
         pesan: 'Barang tidak ditemukan.'
       });
     }
+
+    // Cek apakah barang ini pernah atau sedang dipinjam
+    const peminjamanTerkait = await DetailPeminjaman.findOne({
+      where: { id_barang: id }
+    });
+
+    if (peminjamanTerkait) {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Barang tidak dapat dihapus karena memiliki riwayat peminjaman. Anda bisa mengubah statusnya menjadi "dihapuskan" jika sudah tidak digunakan.'
+      });
+    }
     
     // Hapus gambar jika ada
     if (barang.gambar) {
@@ -631,6 +643,12 @@ exports.hapusBarang = async (req, res) => {
     
   } catch (error) {
     console.error('Kesalahan menghapus barang:', error);
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Barang tidak dapat dihapus karena terkait dengan data lain (seperti peminjaman). Pertimbangkan untuk mengubah status barang menjadi "dihapuskan".'
+      });
+    }
     res.status(500).json({
       sukses: false,
       pesan: 'Terjadi kesalahan pada server.'
