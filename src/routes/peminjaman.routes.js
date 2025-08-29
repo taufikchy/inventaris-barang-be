@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const peminjamanController = require('../controllers/peminjaman.controller');
 const { verifikasiToken, semuaPengguna, adminAtauToolman, hanyaKepalaLab, adminToolmanAtauKepalaLab } = require('../middleware/auth');
+const { logActivity, saveOriginalData } = require('../middleware/activityLogger');
+const { Peminjaman } = require('../models');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -52,22 +54,22 @@ router.get('/', semuaPengguna, peminjamanController.dapatkanSemuaPeminjaman);
 router.get('/:id', semuaPengguna, peminjamanController.dapatkanPeminjamanById);
 
 // Rute untuk membuat peminjaman baru (Admin, Toolman, dan Kepala Lab)
-router.post('/', adminToolmanAtauKepalaLab, peminjamanController.buatPeminjaman);
+router.post('/', adminToolmanAtauKepalaLab, logActivity('create', 'peminjaman'), peminjamanController.buatPeminjaman);
 
 // Rute untuk upload surat peminjaman (Admin, Toolman, dan Kepala Lab)
 router.post('/:id/upload-surat', adminToolmanAtauKepalaLab, upload.single('surat_peminjaman'), peminjamanController.uploadSuratPeminjaman);
 
 // Rute untuk menyetujui/menolak peminjaman (hanya Kepala Lab)
-router.put('/:id/persetujuan', hanyaKepalaLab, peminjamanController.persetujuanPeminjaman);
+router.put('/:id/persetujuan', hanyaKepalaLab, saveOriginalData(Peminjaman), logActivity('update', 'peminjaman'), peminjamanController.persetujuanPeminjaman);
 
 // Rute untuk mengembalikan barang (Admin, Toolman, dan Kepala Lab)
-router.put('/:id/kembalikan', adminToolmanAtauKepalaLab, peminjamanController.kembalikanBarang);
+router.put('/:id/kembalikan', adminToolmanAtauKepalaLab, saveOriginalData(Peminjaman), logActivity('update', 'peminjaman'), peminjamanController.kembalikanBarang);
 
 // Rute untuk mengupdate peminjaman (Admin, Toolman, dan Kepala Lab)
-router.put('/:id', adminToolmanAtauKepalaLab, peminjamanController.updatePeminjaman);
+router.put('/:id', adminToolmanAtauKepalaLab, saveOriginalData(Peminjaman), logActivity('update', 'peminjaman'), peminjamanController.updatePeminjaman);
 
 // Rute untuk menghapus peminjaman (hanya Kepala Lab)
-router.delete('/:id', hanyaKepalaLab, peminjamanController.hapusPeminjaman);
+router.delete('/:id', hanyaKepalaLab, saveOriginalData(Peminjaman), logActivity('delete', 'peminjaman'), peminjamanController.hapusPeminjaman);
 
 // Rute untuk mencetak surat peminjaman (Admin, Toolman, dan Kepala Lab)
 router.get('/:id/cetak-surat', adminToolmanAtauKepalaLab, peminjamanController.cetakSuratPeminjaman);

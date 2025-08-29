@@ -16,7 +16,10 @@ const ruteLaporan = require('./routes/laporan.routes');
 const ruteDashboard = require('./routes/dashboard.routes');
 
 const app = express();
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5000;
+
+// Trust proxy untuk mendapatkan IP address yang benar
+app.set('trust proxy', true);
 
 // Middleware
 app.use(cors({

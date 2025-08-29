@@ -8,7 +8,7 @@ const logActivity = (jenis_aktivitas, modul) => {
     res.locals.activityInfo = {
       jenis_aktivitas,
       modul,
-      ip_address: req.ip || req.connection.remoteAddress,
+      ip_address: req.ip || req.connection.remoteAddress || req.socket.remoteAddress || (req.connection.socket ? req.connection.socket.remoteAddress : null) || '127.0.0.1',
       user_agent: req.get('User-Agent'),
       id_pengguna: req.pengguna?.id,
     };
