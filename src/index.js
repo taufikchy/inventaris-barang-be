@@ -28,6 +28,10 @@ app.use(cors({
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Serve static files from the public directory
+app.use(express.static('public'));
+console.log('Serving static files from:', require('path').resolve('public'));
+
 // Koneksi database
 sequelize.authenticate()
   .then(() => console.log('Database MySQL berhasil terhubung'))
