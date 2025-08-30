@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const barangController = require('../controllers/barang.controller');
 const { verifikasiToken, semuaPengguna, adminAtauToolman, hanyaKepalaLab, adminToolmanAtauKepalaLab } = require('../middleware/auth');
-const { logActivity, recordActivity, saveOriginalData } = require('../middleware/activityLogger');
+const { logActivity, saveOriginalData } = require('../middleware/activityLogger');
 const { Barang } = require('../models');
 const multer = require('multer');
 const path = require('path');
@@ -57,12 +57,12 @@ router.get('/dropdown', semuaPengguna, barangController.dapatkanSemuaBarangDropd
 router.get('/:id', semuaPengguna, barangController.dapatkanBarangById);
 
 // Rute untuk membuat barang baru (Admin, Toolman, dan Kepala Lab)
-router.post('/', adminToolmanAtauKepalaLab, logActivity('create', 'barang'), upload.single('gambar'), barangController.buatBarang, recordActivity);
+router.post('/', adminToolmanAtauKepalaLab, upload.single('gambar'), logActivity('create', 'barang'), barangController.buatBarang);
 
 // Rute untuk mengupdate barang (Admin, Toolman, dan Kepala Lab)
-router.put('/:id', adminToolmanAtauKepalaLab, saveOriginalData(Barang), logActivity('update', 'barang'), upload.single('gambar'), barangController.updateBarang, recordActivity);
+router.put('/:id', adminToolmanAtauKepalaLab, saveOriginalData(Barang), logActivity('update', 'barang'), upload.single('gambar'), barangController.updateBarang);
 
 // Rute untuk menghapus barang (hanya Kepala Lab)
-router.delete('/:id', hanyaKepalaLab, saveOriginalData(Barang), logActivity('delete', 'barang'), barangController.hapusBarang, recordActivity);
+router.delete('/:id', hanyaKepalaLab, saveOriginalData(Barang), logActivity('delete', 'barang'), barangController.hapusBarang);
 
 module.exports = router;

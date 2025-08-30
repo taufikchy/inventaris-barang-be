@@ -434,13 +434,18 @@ exports.buatBarang = async (req, res) => {
     // Buat daftar kode barang yang dibuat
     const kodeBarangList = barangBaruArray.map(item => item.kode);
     
-    res.status(201).json({
+    // Pastikan format respons sesuai dengan yang diharapkan oleh middleware activityLogger
+    // Gunakan field 'sukses' untuk menandakan operasi berhasil
+    const response = {
       sukses: true,
       pesan: `${jumlahBarang} unit barang berhasil ditambahkan dengan kode ${kodeBarangList[0]}${jumlahBarang > 1 ? ` hingga ${kodeBarangList[kodeBarangList.length-1]}` : ''}.`,
       data: barangData,
       jumlah_dibuat: jumlahBarang,
       kode_barang: kodeBarangList
-    });
+    };
+    
+    console.log('Response barang.buatBarang:', response);
+    res.status(201).json(response);
     
   } catch (error) {
     console.error('Kesalahan membuat barang:', error);
@@ -607,6 +612,18 @@ exports.hapusBarang = async (req, res) => {
         pesan: 'Barang tidak ditemukan.'
       });
     }
+
+    // Cek apakah barang ini pernah atau sedang dipinjam
+    const peminjamanTerkait = await DetailPeminjaman.findOne({
+      where: { id_barang: id }
+    });
+
+    if (peminjamanTerkait) {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Barang tidak dapat dihapus karena memiliki riwayat peminjaman. Anda bisa mengubah statusnya menjadi "dihapuskan" jika sudah tidak digunakan.'
+      });
+    }
     
     // Hapus gambar jika ada
     if (barang.gambar) {
@@ -626,6 +643,12 @@ exports.hapusBarang = async (req, res) => {
     
   } catch (error) {
     console.error('Kesalahan menghapus barang:', error);
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Barang tidak dapat dihapus karena terkait dengan data lain (seperti peminjaman). Pertimbangkan untuk mengubah status barang menjadi "dihapuskan".'
+      });
+    }
     res.status(500).json({
       sukses: false,
       pesan: 'Terjadi kesalahan pada server.'
