@@ -13,6 +13,7 @@ const getAllHistoriAktivitas = async (req, res) => {
       tanggal_mulai,
       tanggal_akhir,
       id_pengguna,
+      role_pengguna,
       search
     } = req.query;
 
@@ -42,6 +43,11 @@ const getAllHistoriAktivitas = async (req, res) => {
       whereClause.id_pengguna = id_pengguna;
     }
 
+    // Filter by user role
+    if (role_pengguna) {
+      penggunaWhereClause.peran = role_pengguna;
+    }
+
     // Search in description or object name
     if (search) {
       whereClause[Op.or] = [
@@ -64,7 +70,7 @@ const getAllHistoriAktivitas = async (req, res) => {
         {
           model: Pengguna,
           as: 'pengguna',
-          attributes: ['id', 'nama', 'nama_pengguna'],
+          attributes: ['id', 'nama', 'nama_pengguna', 'peran'],
           where: Object.keys(penggunaWhereClause).length > 0 ? penggunaWhereClause : undefined
         }
       ],

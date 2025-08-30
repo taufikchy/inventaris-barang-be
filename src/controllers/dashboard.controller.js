@@ -1,4 +1,4 @@
-const { Barang, Kategori, Peminjaman, Pengguna, Transaksi, Lokasi } = require('../models');
+const { Barang, Kategori, Peminjaman, Pengguna, Transaksi, Lokasi, HistoriAktivitas } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 
 // Mendapatkan data statistik untuk dashboard
@@ -89,16 +89,11 @@ exports.getDashboardStats = async (req, res) => {
       ]
     });
     
-    // Dapatkan transaksi terbaru (5 terakhir)
-    const recentTransaksi = await Transaksi.findAll({
+    // Dapatkan aktivitas terbaru (5 terakhir)
+    const recentAktivitas = await HistoriAktivitas.findAll({
       limit: 5,
-      order: [['tanggal_transaksi', 'DESC']],
+      order: [['waktu_aktivitas', 'DESC']],
       include: [
-        {
-          model: Barang,
-          as: 'barang',
-          attributes: ['nama', 'kode']
-        },
         {
           model: Pengguna,
           as: 'pengguna',
@@ -163,7 +158,7 @@ exports.getDashboardStats = async (req, res) => {
           totalTransaksiHariIni
         },
         recentPeminjaman,
-        recentTransaksi,
+        recentAktivitas,
         distribusiPerKondisi,
         barangPerLokasi,
         transaksiPerJenis

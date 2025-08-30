@@ -1,5 +1,35 @@
 const { HistoriAktivitas } = require('../models');
 
+// Helper function untuk logging aktivitas login/logout
+const logAuthActivity = async (jenis_aktivitas, pengguna, req) => {
+  try {
+    const ip_address = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || (req.connection.socket ? req.connection.socket.remoteAddress : null) || '127.0.0.1';
+    const user_agent = req.get('User-Agent');
+    
+    let deskripsi = '';
+    if (jenis_aktivitas === 'login') {
+      deskripsi = `Pengguna ${pengguna.nama} (${pengguna.nama_pengguna}) berhasil login.`;
+    } else if (jenis_aktivitas === 'logout') {
+      deskripsi = `Pengguna ${pengguna.nama} (${pengguna.nama_pengguna}) berhasil logout.`;
+    }
+    
+    await HistoriAktivitas.create({
+      id_pengguna: pengguna.id,
+      jenis_aktivitas,
+      modul: 'auth',
+      id_objek: pengguna.id,
+      nama_objek: pengguna.nama,
+      deskripsi,
+      data_sebelum: null,
+      data_sesudah: null,
+      ip_address,
+      user_agent,
+    });
+  } catch (error) {
+    console.error('Gagal menyimpan histori aktivitas auth:', error);
+  }
+};
+
 // Middleware untuk mencatat aktivitas CRUD
 const logActivity = (jenis_aktivitas, modul) => {
   return async (req, res, next) => {
@@ -139,4 +169,5 @@ const saveOriginalData = (Model) => {
 module.exports = {
   logActivity,
   saveOriginalData,
+  logAuthActivity,
 };
