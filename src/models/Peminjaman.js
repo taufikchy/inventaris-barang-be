@@ -22,6 +22,11 @@ const Peminjaman = sequelize.define('Peminjaman', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  jabatan_peminjam: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Jabatan peminjam (contoh: Siswa, Guru, Staff, dll)'
+  },
   tanggal_pinjam: {
     type: DataTypes.DATE,
     allowNull: false,

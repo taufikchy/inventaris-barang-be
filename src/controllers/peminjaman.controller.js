@@ -18,6 +18,7 @@ exports.dapatkanSemuaPeminjaman = async (req, res) => {
           { nama_peminjam: { [Op.like]: `%${cari}%` } },
           { kontak_peminjam: { [Op.like]: `%${cari}%` } },
           { kelas_peminjam: { [Op.like]: `%${cari}%` } },
+          { jabatan_peminjam: { [Op.like]: `%${cari}%` } },
           { catatan: { [Op.like]: `%${cari}%` } }
         ]
       };
@@ -120,6 +121,7 @@ exports.buatPeminjaman = async (req, res) => {
       nama_peminjam, 
       kontak_peminjam, 
       kelas_peminjam, 
+      jabatan_peminjam, 
       tanggal_pinjam, 
       tanggal_kembali_harapan, 
       catatan, 
@@ -165,6 +167,7 @@ exports.buatPeminjaman = async (req, res) => {
       nama_peminjam,
       kontak_peminjam,
       kelas_peminjam,
+      jabatan_peminjam,
       tanggal_pinjam: new Date(tanggal_pinjam),
       tanggal_kembali_harapan: new Date(tanggal_kembali_harapan),
       status: 'menunggu_persetujuan', // Status awal adalah menunggu persetujuan
@@ -474,6 +477,7 @@ exports.updatePeminjaman = async (req, res) => {
       nama_peminjam, 
       kontak_peminjam, 
       kelas_peminjam, 
+      jabatan_peminjam, 
       tanggal_pinjam, 
       tanggal_kembali_harapan, 
       tanggal_kembali_aktual, 
@@ -544,6 +548,7 @@ exports.updatePeminjaman = async (req, res) => {
       nama_peminjam: nama_peminjam || peminjaman.nama_peminjam,
       kontak_peminjam: kontak_peminjam || peminjaman.kontak_peminjam,
       kelas_peminjam: kelas_peminjam !== undefined ? kelas_peminjam : peminjaman.kelas_peminjam,
+      jabatan_peminjam: jabatan_peminjam !== undefined ? jabatan_peminjam : peminjaman.jabatan_peminjam,
       tanggal_pinjam: tanggal_pinjam ? new Date(tanggal_pinjam) : peminjaman.tanggal_pinjam,
       tanggal_kembali_harapan: tanggal_kembali_harapan ? new Date(tanggal_kembali_harapan) : peminjaman.tanggal_kembali_harapan,
       tanggal_kembali_aktual: tanggal_kembali_aktual ? new Date(tanggal_kembali_aktual) : peminjaman.tanggal_kembali_aktual,

@@ -584,6 +584,14 @@ exports.updateBarang = async (req, res) => {
     // Tambahkan jumlah_tersedia yang sama dengan jumlah
     barangData.jumlah_tersedia = barangData.jumlah;
     
+    // Pastikan nama kategori dan lokasi tersedia untuk activity logger
+    if (barangData.kategori) {
+      barangData.nama_kategori = barangData.kategori.nama;
+    }
+    if (barangData.lokasi) {
+      barangData.nama_lokasi = barangData.lokasi.nama;
+    }
+    
     res.status(200).json({
       sukses: true,
       pesan: 'Barang berhasil diperbarui.',

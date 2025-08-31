@@ -50,7 +50,10 @@ async function updateDatabase() {
     // 4. Tambahkan kolom surat_peminjaman
     await addColumnIfNotExists('peminjaman', 'surat_peminjaman', 'VARCHAR(255) NULL');
 
-    // 5. Modifikasi kolom status untuk menambahkan nilai enum baru
+    // 5. Tambahkan kolom jabatan_peminjam
+    await addColumnIfNotExists('peminjaman', 'jabatan_peminjam', 'VARCHAR(255) NULL COMMENT "Jabatan peminjam (contoh: Siswa, Guru, Staff, dll)"');
+
+    // 6. Modifikasi kolom status untuk menambahkan nilai enum baru
     try {
       await sequelize.query(
         `ALTER TABLE peminjaman MODIFY COLUMN status 
@@ -62,7 +65,7 @@ async function updateDatabase() {
       console.error('Gagal memodifikasi kolom status:', error);
     }
 
-    // 6. Tambahkan foreign key untuk id_kepala_lab jika belum ada
+    // 7. Tambahkan foreign key untuk id_kepala_lab jika belum ada
     try {
       // Cek apakah foreign key sudah ada
       const [foreignKeys] = await sequelize.query(
