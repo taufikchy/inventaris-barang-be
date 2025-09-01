@@ -6,6 +6,9 @@ const { verifikasiToken } = require('../middleware/auth');
 // Rute untuk login
 router.post('/login', authController.login);
 
+// Rute untuk logout
+router.post('/logout', verifikasiToken, authController.logout);
+
 // Rute untuk verifikasi token
 router.get('/verify', verifikasiToken, authController.verifyToken);
 

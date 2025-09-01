@@ -10,6 +10,12 @@ const Peminjaman = sequelize.define('Peminjaman', {
     primaryKey: true,
     autoIncrement: true
   },
+  kode_peminjaman: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+    comment: 'Kode unik peminjaman (contoh: PJM-001)'
+  },
   nama_peminjam: {
     type: DataTypes.STRING,
     allowNull: false
@@ -21,6 +27,11 @@ const Peminjaman = sequelize.define('Peminjaman', {
   kelas_peminjam: {
     type: DataTypes.STRING,
     allowNull: true
+  },
+  jabatan_peminjam: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Jabatan peminjam (contoh: Siswa, Guru, Staff, dll)'
   },
   tanggal_pinjam: {
     type: DataTypes.DATE,
@@ -118,11 +129,11 @@ const DetailPeminjaman = sequelize.define('DetailPeminjaman', {
     allowNull: true
   },
   kondisi_saat_pinjam: {
-    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak'),
+    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
     defaultValue: 'baik'
   },
   kondisi_saat_kembali: {
-    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak'),
+    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
     allowNull: true
   },
   catatan_kondisi: {

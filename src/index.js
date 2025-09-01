@@ -16,7 +16,7 @@ const ruteLaporan = require('./routes/laporan.routes');
 const ruteDashboard = require('./routes/dashboard.routes');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001; // Changed port
 
 // Trust proxy untuk mendapatkan IP address yang benar
 app.set('trust proxy', true);
@@ -76,4 +76,4 @@ app.use((err, req, res, next) => {
 // Mulai server
 app.listen(PORT, () => {
   console.log(`Server berjalan pada port ${PORT}`);
-});
+}); // Updated for status fix

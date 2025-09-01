@@ -7,7 +7,10 @@ exports.getLaporanInventaris = async (req, res) => {
     const { kategori, lokasi, kondisi, tanggal_mulai, tanggal_akhir } = req.query;
     
     // Buat kondisi pencarian
-    let kondisi_pencarian = {};
+    let kondisi_pencarian = {
+      // Exclude barang yang sudah dihapuskan
+      status: { [Op.ne]: 'dihapuskan' }
+    };
     
     // Filter berdasarkan kategori
     if (kategori) {
@@ -49,10 +52,8 @@ exports.getLaporanInventaris = async (req, res) => {
       order: [['updatedAt', 'DESC']]
     });
     
-    // Hitung total nilai inventaris
-    const totalNilai = inventaris.reduce((total, item) => {
-      return total + (item.harga_perolehan * item.jumlah || 0);
-    }, 0);
+    // Hitung total nilai inventaris (tidak menggunakan harga karena field dihapus)
+    const totalNilai = 0;
     
     // Hitung jumlah barang per kategori
     const jumlahPerKategori = {};
@@ -210,8 +211,11 @@ exports.getLaporanPeminjaman = async (req, res) => {
 // Mendapatkan laporan kondisi barang
 exports.getLaporanKondisi = async (req, res) => {
   try {
-    // Dapatkan semua barang dengan kondisinya
+    // Dapatkan semua barang dengan kondisinya (exclude yang dihapuskan)
     const barang = await Barang.findAll({
+      where: {
+        status: { [Op.ne]: 'dihapuskan' }
+      },
       include: [
         { model: Kategori, as: 'kategori' },
         { model: Lokasi, as: 'lokasi' }

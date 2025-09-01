@@ -88,7 +88,6 @@ exports.dapatkanSemuaBarang = async (req, res) => {
           kondisi: itemData.kondisi,
           tanggal_perolehan: itemData.tanggal_perolehan,
           tahun_pengadaan: itemData.tahun_pengadaan,
-          harga_perolehan: itemData.harga_perolehan,
           gambar: itemData.gambar,
           id_kategori: itemData.id_kategori,
           kategori: itemData.kategori,
@@ -303,7 +302,7 @@ exports.dapatkanBarangById = async (req, res) => {
 // Membuat barang baru
 exports.buatBarang = async (req, res) => {
   try {
-    const { nama, deskripsi, jumlah, kondisi, tanggal_perolehan, tahun_pengadaan, harga_perolehan, id_kategori, id_lokasi } = req.body;
+    const { nama, deskripsi, jumlah, kondisi, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi } = req.body;
     
     // Validasi input
     if (!nama || !id_kategori || !id_lokasi) {
@@ -390,9 +389,6 @@ exports.buatBarang = async (req, res) => {
       // Buat kode barang final untuk unit ini
       const kodeUnit = `${prefix}-${formattedNumber}`;
       
-      // Validasi harga_perolehan - konversi string kosong ke null
-      const validHargaPerolehan = harga_perolehan === '' || harga_perolehan === null ? null : harga_perolehan;
-      
       // Buat barang baru dengan kode unik
       const barangBaru = await Barang.create({
         nama,
@@ -402,7 +398,6 @@ exports.buatBarang = async (req, res) => {
         kondisi: kondisiDatabase,
         tanggal_perolehan,
         tahun_pengadaan,
-        harga_perolehan: validHargaPerolehan,
         gambar: gambarPath,
         id_kategori,
         id_lokasi
@@ -460,7 +455,7 @@ exports.buatBarang = async (req, res) => {
 exports.updateBarang = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nama, kode, deskripsi, jumlah, kondisi, status, tanggal_perolehan, tahun_pengadaan, harga_perolehan, id_kategori, id_lokasi } = req.body;
+    const { nama, kode, deskripsi, jumlah, kondisi, status, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi } = req.body;
     
     // Cek apakah barang ada
     const barang = await Barang.findByPk(id);
@@ -528,17 +523,11 @@ exports.updateBarang = async (req, res) => {
       'Tersedia': 'tersedia',
       'Dipinjam': 'dipinjam',
       'Perbaikan': 'perbaikan',
-      'Rusak': 'perbaikan',
       'Dihapuskan': 'dihapuskan'
     };
     
     const kondisiDatabase = kondisi ? kondisiMapping[kondisi] || kondisi.toLowerCase().replace(' ', '_') : barang.kondisi;
     const statusDatabase = status ? statusMapping[status] || status.toLowerCase().replace(' ', '_') : barang.status;
-    
-    // Validasi harga_perolehan - konversi string kosong ke null
-    const validHargaPerolehan = harga_perolehan !== undefined ? 
-      (harga_perolehan === '' || harga_perolehan === null ? null : harga_perolehan) : 
-      barang.harga_perolehan;
     
     // Update barang
     await barang.update({
@@ -550,7 +539,6 @@ exports.updateBarang = async (req, res) => {
       status: statusDatabase,
       tanggal_perolehan: tanggal_perolehan || barang.tanggal_perolehan,
       tahun_pengadaan: tahun_pengadaan !== undefined ? tahun_pengadaan : barang.tahun_pengadaan,
-      harga_perolehan: validHargaPerolehan,
       gambar: gambarPath,
       id_kategori: id_kategori || barang.id_kategori,
       id_lokasi: id_lokasi || barang.id_lokasi
@@ -583,6 +571,14 @@ exports.updateBarang = async (req, res) => {
     barangData.status = statusFrontendMapping[barangData.status] || barangData.status;
     // Tambahkan jumlah_tersedia yang sama dengan jumlah
     barangData.jumlah_tersedia = barangData.jumlah;
+    
+    // Pastikan nama kategori dan lokasi tersedia untuk activity logger
+    if (barangData.kategori) {
+      barangData.nama_kategori = barangData.kategori.nama;
+    }
+    if (barangData.lokasi) {
+      barangData.nama_lokasi = barangData.lokasi.nama;
+    }
     
     res.status(200).json({
       sukses: true,

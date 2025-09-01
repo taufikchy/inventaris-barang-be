@@ -18,6 +18,7 @@ exports.dapatkanSemuaPeminjaman = async (req, res) => {
           { nama_peminjam: { [Op.like]: `%${cari}%` } },
           { kontak_peminjam: { [Op.like]: `%${cari}%` } },
           { kelas_peminjam: { [Op.like]: `%${cari}%` } },
+          { jabatan_peminjam: { [Op.like]: `%${cari}%` } },
           { catatan: { [Op.like]: `%${cari}%` } }
         ]
       };
@@ -120,6 +121,7 @@ exports.buatPeminjaman = async (req, res) => {
       nama_peminjam, 
       kontak_peminjam, 
       kelas_peminjam, 
+      jabatan_peminjam, 
       tanggal_pinjam, 
       tanggal_kembali_harapan, 
       catatan, 
@@ -165,11 +167,20 @@ exports.buatPeminjaman = async (req, res) => {
       nama_peminjam,
       kontak_peminjam,
       kelas_peminjam,
+      jabatan_peminjam,
       tanggal_pinjam: new Date(tanggal_pinjam),
       tanggal_kembali_harapan: new Date(tanggal_kembali_harapan),
       status: 'menunggu_persetujuan', // Status awal adalah menunggu persetujuan
       catatan,
       id_pengguna: req.pengguna.id // Menggunakan req.pengguna.id sebagai gantinya req.userId
+    });
+    
+    // Generate kode peminjaman setelah peminjaman dibuat
+    const kodePeminjaman = `PJM-${peminjamanBaru.id.toString().padStart(3, '0')}`;
+    
+    // Update peminjaman dengan kode peminjaman
+    await peminjamanBaru.update({
+      kode_peminjaman: kodePeminjaman
     });
     
     // Buat detail peminjaman untuk setiap barang
@@ -310,10 +321,13 @@ exports.persetujuanPeminjaman = async (req, res) => {
         }
       }
       
-      // Kurangi stok semua barang
+      // Kurangi stok semua barang dan update status menjadi dipinjam
       for (const detail of peminjaman.detail_peminjaman) {
         const barang = detail.barang;
-        await barang.update({ jumlah: barang.jumlah - detail.jumlah });
+        await barang.update({ 
+          jumlah: barang.jumlah - detail.jumlah,
+          status: 'dipinjam' // Update status menjadi dipinjam saat disetujui
+        });
       }
       
       // Update status menjadi dipinjam
@@ -418,7 +432,8 @@ exports.kembalikanBarang = async (req, res) => {
     for (const detail of peminjaman.detail_peminjaman) {
       const barang = detail.barang;
       await barang.update({ 
-        jumlah: barang.jumlah + detail.jumlah
+        jumlah: barang.jumlah + detail.jumlah,
+        status: 'tersedia' // Update status menjadi tersedia setelah dikembalikan
       });
       
       // Update kondisi saat kembali di detail peminjaman
@@ -441,6 +456,13 @@ exports.kembalikanBarang = async (req, res) => {
         kondisi_saat_kembali: kondisiKembali,
         catatan_kondisi: catatanKondisi
       });
+      
+      // Update kondisi barang utama jika kondisi berubah saat dikembalikan
+      if (kondisiKembali && kondisiKembali !== detail.kondisi_saat_pinjam) {
+        await barang.update({
+          kondisi: kondisiKembali
+        });
+      }
     }
     
     // Dapatkan data peminjaman yang sudah diupdate dengan relasi
@@ -474,12 +496,12 @@ exports.updatePeminjaman = async (req, res) => {
       nama_peminjam, 
       kontak_peminjam, 
       kelas_peminjam, 
+      jabatan_peminjam, 
       tanggal_pinjam, 
       tanggal_kembali_harapan, 
       tanggal_kembali_aktual, 
       status, 
-      catatan, 
-      id_barang 
+      catatan 
     } = req.body;
     
     // Cek apakah peminjaman ada
@@ -494,49 +516,36 @@ exports.updatePeminjaman = async (req, res) => {
       });
     }
     
-    // Jika mengubah barang yang dipinjam
-    if (id_barang && id_barang !== peminjaman.id_barang) {
-      // Cek apakah barang baru tersedia
-      const barangBaru = await Barang.findByPk(id_barang);
-      if (!barangBaru) {
-        return res.status(404).json({
-          sukses: false,
-          pesan: 'Barang tidak ditemukan.'
-        });
-      }
-      
-      if (barangBaru.jumlah <= 0) {
-        return res.status(400).json({
-          sukses: false,
-          pesan: 'Barang tidak tersedia untuk dipinjam.'
-        });
-      }
-      
-      // Kembalikan jumlah barang lama
-      const barangLama = peminjaman.barang;
-      await barangLama.update({ jumlah: barangLama.jumlah + 1 });
-      
-      // Kurangi jumlah barang baru
-      await barangBaru.update({ jumlah: barangBaru.jumlah - 1 });
-    }
+    // Note: Logika untuk mengubah barang yang dipinjam tidak diperlukan lagi
+    // karena sekarang menggunakan DetailPeminjaman yang terpisah
     
     // Jika mengubah status dari dipinjam ke dikembalikan
     if (status === 'dikembalikan' && peminjaman.status === 'dipinjam') {
-      // Tambah jumlah barang yang tersedia
-      const barang = await Barang.findByPk(peminjaman.id_barang);
-      await barang.update({ jumlah: barang.jumlah + 1 });
+      // Tambah jumlah barang yang tersedia dan update status
+      for (const detail of peminjaman.detail_peminjaman) {
+        const barang = detail.barang;
+        await barang.update({ 
+          jumlah: barang.jumlah + detail.jumlah,
+          status: 'tersedia' // Update status menjadi tersedia
+        });
+      }
     }
     // Jika mengubah status dari dikembalikan ke dipinjam
     else if (status === 'dipinjam' && peminjaman.status === 'dikembalikan') {
-      // Kurangi jumlah barang yang tersedia
-      const barang = await Barang.findByPk(peminjaman.id_barang);
-      if (barang.jumlah <= 0) {
-        return res.status(400).json({
-          sukses: false,
-          pesan: 'Barang tidak tersedia untuk dipinjam.'
+      // Cek ketersediaan dan kurangi jumlah barang
+      for (const detail of peminjaman.detail_peminjaman) {
+        const barang = detail.barang;
+        if (barang.jumlah < detail.jumlah) {
+          return res.status(400).json({
+            sukses: false,
+            pesan: `Barang ${barang.nama} tidak tersedia dalam jumlah yang diminta.`
+          });
+        }
+        await barang.update({ 
+          jumlah: barang.jumlah - detail.jumlah,
+          status: 'dipinjam' // Update status menjadi dipinjam
         });
       }
-      await barang.update({ jumlah: barang.jumlah - 1 });
     }
     
     // Update peminjaman
@@ -544,18 +553,18 @@ exports.updatePeminjaman = async (req, res) => {
       nama_peminjam: nama_peminjam || peminjaman.nama_peminjam,
       kontak_peminjam: kontak_peminjam || peminjaman.kontak_peminjam,
       kelas_peminjam: kelas_peminjam !== undefined ? kelas_peminjam : peminjaman.kelas_peminjam,
+      jabatan_peminjam: jabatan_peminjam !== undefined ? jabatan_peminjam : peminjaman.jabatan_peminjam,
       tanggal_pinjam: tanggal_pinjam ? new Date(tanggal_pinjam) : peminjaman.tanggal_pinjam,
       tanggal_kembali_harapan: tanggal_kembali_harapan ? new Date(tanggal_kembali_harapan) : peminjaman.tanggal_kembali_harapan,
       tanggal_kembali_aktual: tanggal_kembali_aktual ? new Date(tanggal_kembali_aktual) : peminjaman.tanggal_kembali_aktual,
       status: status || peminjaman.status,
-      catatan: catatan !== undefined ? catatan : peminjaman.catatan,
-      id_barang: id_barang || peminjaman.id_barang
+      catatan: catatan !== undefined ? catatan : peminjaman.catatan
     });
     
     // Dapatkan data peminjaman yang sudah diupdate dengan relasi
     const peminjamanUpdated = await Peminjaman.findByPk(id, {
       include: [
-        { model: Barang, as: 'barang' },
+        { model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] },
         { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] }
       ]
     });
@@ -582,7 +591,7 @@ exports.hapusPeminjaman = async (req, res) => {
     
     // Cek apakah peminjaman ada
     const peminjaman = await Peminjaman.findByPk(id, {
-      include: [{ model: Barang, as: 'barang' }]
+      include: [{ model: DetailPeminjaman, as: 'detail_peminjaman', include: [{ model: Barang, as: 'barang' }] }]
     });
     
     if (!peminjaman) {
@@ -592,10 +601,15 @@ exports.hapusPeminjaman = async (req, res) => {
       });
     }
     
-    // Jika status masih dipinjam, kembalikan jumlah barang
+    // Jika status masih dipinjam, kembalikan jumlah barang dan update status
     if (peminjaman.status === 'dipinjam') {
-      const barang = peminjaman.barang;
-      await barang.update({ jumlah: barang.jumlah + 1 });
+      for (const detail of peminjaman.detail_peminjaman) {
+        const barang = detail.barang;
+        await barang.update({ 
+          jumlah: barang.jumlah + detail.jumlah,
+          status: 'tersedia' // Update status menjadi tersedia saat peminjaman dihapus
+        });
+      }
     }
     
     // Hapus peminjaman

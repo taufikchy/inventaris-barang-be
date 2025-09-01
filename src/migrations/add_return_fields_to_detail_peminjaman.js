@@ -7,7 +7,7 @@ const addReturnFieldsToDetailPeminjaman = async () => {
     
     // Tambahkan kolom kondisi_saat_pinjam
     await sequelize.getQueryInterface().addColumn('detail_peminjaman', 'kondisi_saat_pinjam', {
-      type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak'),
+      type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
       defaultValue: 'baik',
       allowNull: false
     });
@@ -15,7 +15,7 @@ const addReturnFieldsToDetailPeminjaman = async () => {
     
     // Tambahkan kolom kondisi_saat_kembali
     await sequelize.getQueryInterface().addColumn('detail_peminjaman', 'kondisi_saat_kembali', {
-      type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak'),
+      type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
       allowNull: true
     });
     console.log('✓ Kolom kondisi_saat_kembali berhasil ditambahkan');

@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { Pengguna } = require('../models');
+const { logAuthActivity } = require('../middleware/activityLogger');
 
 // Controller untuk login pengguna
 exports.login = async (req, res) => {
@@ -49,6 +50,9 @@ exports.login = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
     
+    // Log aktivitas login
+    await logAuthActivity('login', pengguna, req);
+    
     // Kirim respons dengan token dan data pengguna
     res.status(200).json({
       sukses: true,
@@ -66,6 +70,29 @@ exports.login = async (req, res) => {
     
   } catch (error) {
     console.error('Kesalahan login:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan pada server.'
+    });
+  }
+};
+
+// Controller untuk logout pengguna
+exports.logout = async (req, res) => {
+  try {
+    const pengguna = req.pengguna;
+    
+    // Log aktivitas logout
+    await logAuthActivity('logout', pengguna, req);
+    
+    // Kirim respons logout berhasil
+    res.status(200).json({
+      sukses: true,
+      pesan: 'Logout berhasil'
+    });
+    
+  } catch (error) {
+    console.error('Kesalahan logout:', error);
     res.status(500).json({
       sukses: false,
       pesan: 'Terjadi kesalahan pada server.'

@@ -40,10 +40,6 @@ const Barang = sequelize.define('Barang', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  harga_perolehan: {
-    type: DataTypes.DECIMAL(15, 2),
-    allowNull: true
-  },
   gambar: {
     type: DataTypes.STRING,
     allowNull: true
