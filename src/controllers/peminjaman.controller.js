@@ -175,6 +175,14 @@ exports.buatPeminjaman = async (req, res) => {
       id_pengguna: req.pengguna.id // Menggunakan req.pengguna.id sebagai gantinya req.userId
     });
     
+    // Generate kode peminjaman setelah peminjaman dibuat
+    const kodePeminjaman = `PJM-${peminjamanBaru.id.toString().padStart(3, '0')}`;
+    
+    // Update peminjaman dengan kode peminjaman
+    await peminjamanBaru.update({
+      kode_peminjaman: kodePeminjaman
+    });
+    
     // Buat detail peminjaman untuk setiap barang
     for (const detail of detail_peminjaman) {
       await DetailPeminjaman.create({

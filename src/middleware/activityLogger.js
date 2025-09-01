@@ -87,7 +87,7 @@ const logActivity = (jenis_aktivitas, modul) => {
             if (modul === 'peminjaman') {
               deskripsi = `Menambahkan ${modul} baru untuk ${data?.nama_peminjam || 'peminjam'}`;
               id_objek = data?.id;
-              nama_objek = data?.nama_peminjam || `Peminjaman #${data?.id}`;
+              nama_objek = data?.kode_peminjaman || data?.nama_peminjam || `Peminjaman #${data?.id}`;
             } else {
               deskripsi = `Menambahkan ${modul} baru: ${data?.nama || data?.kode || 'item baru'}`;
               id_objek = data?.id;
@@ -99,7 +99,7 @@ const logActivity = (jenis_aktivitas, modul) => {
             if (modul === 'peminjaman') {
               deskripsi = `Memperbarui ${modul} untuk ${data?.nama_peminjam || originalData?.nama_peminjam || 'peminjam'}`;
               id_objek = data?.id || originalData?.id;
-              nama_objek = data?.nama_peminjam || originalData?.nama_peminjam || `Peminjaman #${data?.id || originalData?.id}`;
+              nama_objek = data?.kode_peminjaman || originalData?.kode_peminjaman || data?.nama_peminjam || originalData?.nama_peminjam || `Peminjaman #${data?.id || originalData?.id}`;
             } else {
               deskripsi = `Memperbarui ${modul}: ${data?.nama || data?.kode || originalData?.nama || originalData?.kode || 'item'}`;
               id_objek = data?.id || originalData?.id;
@@ -112,7 +112,7 @@ const logActivity = (jenis_aktivitas, modul) => {
             if (modul === 'peminjaman') {
               deskripsi = `Menghapus ${modul} untuk ${originalData?.nama_peminjam || 'peminjam'}`;
               id_objek = originalData?.id;
-              nama_objek = originalData?.nama_peminjam || `Peminjaman #${originalData?.id}`;
+              nama_objek = originalData?.kode_peminjaman || originalData?.nama_peminjam || `Peminjaman #${originalData?.id}`;
             } else {
               deskripsi = `Menghapus ${modul}: ${originalData?.nama || originalData?.kode || 'item'}`;
               id_objek = originalData?.id;

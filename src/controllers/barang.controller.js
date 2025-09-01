@@ -523,7 +523,6 @@ exports.updateBarang = async (req, res) => {
       'Tersedia': 'tersedia',
       'Dipinjam': 'dipinjam',
       'Perbaikan': 'perbaikan',
-      'Rusak': 'perbaikan',
       'Dihapuskan': 'dihapuskan'
     };
     

@@ -379,6 +379,7 @@ exports.dapatkanSemuaPenggunaDropdown = async (req, res) => {
 exports.nonaktifkanPengguna = async (req, res) => {
   try {
     const { id } = req.params;
+    const penggunaLogin = req.pengguna; // Pengguna yang sedang login
     
     // Cari pengguna yang akan dinonaktifkan
     const pengguna = await Pengguna.findByPk(id);
@@ -387,6 +388,14 @@ exports.nonaktifkanPengguna = async (req, res) => {
       return res.status(404).json({
         sukses: false,
         pesan: 'Pengguna tidak ditemukan.'
+      });
+    }
+    
+    // Periksa apakah pengguna mencoba menonaktifkan dirinya sendiri
+    if (parseInt(id) === penggunaLogin.id) {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Anda tidak dapat menonaktifkan akun Anda sendiri.'
       });
     }
     

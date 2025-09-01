@@ -10,6 +10,12 @@ const Peminjaman = sequelize.define('Peminjaman', {
     primaryKey: true,
     autoIncrement: true
   },
+  kode_peminjaman: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+    comment: 'Kode unik peminjaman (contoh: PJM-001)'
+  },
   nama_peminjam: {
     type: DataTypes.STRING,
     allowNull: false
