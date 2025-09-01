@@ -1,5 +1,6 @@
-const { Pengguna } = require('../models');
+const { Pengguna, HistoriAktivitas, Peminjaman, Transaksi } = require('../models');
 const { Op } = require('sequelize');
+const sequelize = require('../config/basisdata');
 
 // Mendapatkan semua pengguna
 exports.dapatkanSemuaPengguna = async (req, res) => {
@@ -240,13 +241,16 @@ exports.resetKataSandi = async (req, res) => {
 
 // Menghapus pengguna
 exports.hapusPengguna = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
   try {
     const { id } = req.params;
     
     // Cari pengguna yang akan dihapus
-    const pengguna = await Pengguna.findByPk(id);
+    const pengguna = await Pengguna.findByPk(id, { transaction });
     
     if (!pengguna) {
+      await transaction.rollback();
       return res.status(404).json({
         sukses: false,
         pesan: 'Pengguna tidak ditemukan.'
@@ -256,10 +260,12 @@ exports.hapusPengguna = async (req, res) => {
     // Periksa apakah pengguna yang akan dihapus adalah admin terakhir
     if (pengguna.peran === 'admin') {
       const jumlahAdmin = await Pengguna.count({
-        where: { peran: 'admin' }
+        where: { peran: 'admin' },
+        transaction
       });
       
       if (jumlahAdmin <= 1) {
+        await transaction.rollback();
         return res.status(400).json({
           sukses: false,
           pesan: 'Tidak dapat menghapus admin terakhir.'
@@ -267,19 +273,79 @@ exports.hapusPengguna = async (req, res) => {
       }
     }
     
+    // Hapus data histori aktivitas yang terkait
+    const jumlahHistori = await HistoriAktivitas.count({
+      where: { id_pengguna: id },
+      transaction
+    });
+    
+    if (jumlahHistori > 0) {
+      await HistoriAktivitas.destroy({
+        where: { id_pengguna: id },
+        transaction
+      });
+    }
+    
+    // Periksa apakah user memiliki data peminjaman
+    const jumlahPeminjaman = await Peminjaman.count({
+      where: {
+        [Op.or]: [
+          { id_pengguna: id },
+          { id_kepala_lab: id }
+        ]
+      },
+      transaction
+    });
+    
+    if (jumlahPeminjaman > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        sukses: false,
+        pesan: `Tidak dapat menghapus pengguna karena memiliki ${jumlahPeminjaman} data peminjaman. Silakan nonaktifkan pengguna atau hapus data peminjaman terlebih dahulu.`,
+        detail: {
+          jumlah_peminjaman: jumlahPeminjaman
+        }
+      });
+    }
+    
+    // Periksa apakah user memiliki data transaksi
+    const jumlahTransaksi = await Transaksi.count({
+      where: { id_pengguna: id },
+      transaction
+    });
+    
+    if (jumlahTransaksi > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        sukses: false,
+        pesan: `Tidak dapat menghapus pengguna karena memiliki ${jumlahTransaksi} data transaksi. Silakan nonaktifkan pengguna atau hapus data transaksi terlebih dahulu.`,
+        detail: {
+          jumlah_transaksi: jumlahTransaksi
+        }
+      });
+    }
+    
     // Hapus pengguna
-    await pengguna.destroy();
+    await pengguna.destroy({ transaction });
+    
+    // Commit transaction
+    await transaction.commit();
     
     res.status(200).json({
       sukses: true,
-      pesan: 'Pengguna berhasil dihapus.'
+      pesan: 'Pengguna berhasil dihapus beserta data terkait.',
+      detail: {
+        histori_dihapus: jumlahHistori
+      }
     });
     
   } catch (error) {
+    await transaction.rollback();
     console.error('Kesalahan menghapus pengguna:', error);
     res.status(500).json({
       sukses: false,
-      pesan: 'Terjadi kesalahan pada server.'
+      pesan: 'Terjadi kesalahan pada server.',
+      error: error.message
     });
   }
 };
@@ -288,21 +354,118 @@ exports.hapusPengguna = async (req, res) => {
 exports.dapatkanSemuaPenggunaDropdown = async (req, res) => {
   try {
     const pengguna = await Pengguna.findAll({
-      attributes: ['id', 'nama', 'nama_pengguna'],
-      where: { aktif: true },
+      attributes: ['id', 'nama', 'nama_pengguna', 'peran'],
+      where: {
+        aktif: true
+      },
       order: [['nama', 'ASC']]
     });
-    
+
     res.status(200).json({
       sukses: true,
       data: pengguna
     });
-    
+
   } catch (error) {
     console.error('Kesalahan mendapatkan dropdown pengguna:', error);
     res.status(500).json({
       sukses: false,
       pesan: 'Terjadi kesalahan pada server.'
+    });
+  }
+};
+
+// Menonaktifkan pengguna (alternatif yang lebih aman daripada menghapus)
+exports.nonaktifkanPengguna = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Cari pengguna yang akan dinonaktifkan
+    const pengguna = await Pengguna.findByPk(id);
+    
+    if (!pengguna) {
+      return res.status(404).json({
+        sukses: false,
+        pesan: 'Pengguna tidak ditemukan.'
+      });
+    }
+    
+    // Periksa apakah pengguna yang akan dinonaktifkan adalah admin terakhir
+    if (pengguna.peran === 'admin') {
+      const jumlahAdminAktif = await Pengguna.count({
+        where: { 
+          peran: 'admin',
+          aktif: true
+        }
+      });
+      
+      if (jumlahAdminAktif <= 1) {
+        return res.status(400).json({
+          sukses: false,
+          pesan: 'Tidak dapat menonaktifkan admin terakhir.'
+        });
+      }
+    }
+    
+    // Nonaktifkan pengguna
+    await pengguna.update({ aktif: false });
+    
+    res.status(200).json({
+      sukses: true,
+      pesan: `Pengguna ${pengguna.nama} berhasil dinonaktifkan.`,
+      data: {
+        id: pengguna.id,
+        nama: pengguna.nama,
+        nama_pengguna: pengguna.nama_pengguna,
+        aktif: pengguna.aktif
+      }
+    });
+    
+  } catch (error) {
+    console.error('Kesalahan menonaktifkan pengguna:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan pada server.',
+      error: error.message
+    });
+  }
+};
+
+// Mengaktifkan kembali pengguna
+exports.aktifkanPengguna = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Cari pengguna yang akan diaktifkan
+    const pengguna = await Pengguna.findByPk(id);
+    
+    if (!pengguna) {
+      return res.status(404).json({
+        sukses: false,
+        pesan: 'Pengguna tidak ditemukan.'
+      });
+    }
+    
+    // Aktifkan pengguna
+    await pengguna.update({ aktif: true });
+    
+    res.status(200).json({
+      sukses: true,
+      pesan: `Pengguna ${pengguna.nama} berhasil diaktifkan.`,
+      data: {
+        id: pengguna.id,
+        nama: pengguna.nama,
+        nama_pengguna: pengguna.nama_pengguna,
+        aktif: pengguna.aktif
+      }
+    });
+    
+  } catch (error) {
+    console.error('Kesalahan mengaktifkan pengguna:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan pada server.',
+      error: error.message
     });
   }
 };

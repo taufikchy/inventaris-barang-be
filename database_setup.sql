@@ -49,7 +49,6 @@ CREATE TABLE IF NOT EXISTS barang (
   jumlah INT NOT NULL DEFAULT 0,
   kondisi ENUM('baik', 'rusak_ringan', 'rusak_berat') DEFAULT 'baik',
   tanggal_perolehan DATE,
-  harga_perolehan DECIMAL(15, 2),
   gambar VARCHAR(255),
   id_kategori INT NOT NULL,
   id_lokasi INT NOT NULL,
@@ -146,14 +145,14 @@ INSERT INTO lokasi (nama, deskripsi) VALUES
 -- ========================================================================
 
 -- Contoh data barang untuk kategori Komputer
-INSERT INTO barang (nama, kode, deskripsi, jumlah, kondisi, tanggal_perolehan, harga_perolehan, id_kategori, id_lokasi) VALUES
-('PC Desktop Dell OptiPlex', 'KOMP-001', 'PC Desktop Dell OptiPlex 3080 Core i5 Gen 10', 10, 'baik', '2023-01-15', 8500000, 1, 1),
-('Laptop Lenovo ThinkPad', 'KOMP-002', 'Laptop Lenovo ThinkPad E14 Core i5 Gen 11', 5, 'baik', '2023-02-20', 9500000, 1, 2);
+INSERT INTO barang (nama, kode, deskripsi, jumlah, kondisi, tanggal_perolehan, id_kategori, id_lokasi) VALUES
+('PC Desktop Dell OptiPlex', 'KOMP-001', 'PC Desktop Dell OptiPlex 3080 Core i5 Gen 10', 10, 'baik', '2023-01-15', 1, 1),
+('Laptop Lenovo ThinkPad', 'KOMP-002', 'Laptop Lenovo ThinkPad E14 Core i5 Gen 11', 5, 'baik', '2023-02-20', 1, 2);
 
 -- Contoh data barang untuk kategori Jaringan
-INSERT INTO barang (nama, kode, deskripsi, jumlah, kondisi, tanggal_perolehan, harga_perolehan, id_kategori, id_lokasi) VALUES
-('Router Cisco', 'NET-001', 'Router Cisco 1941 untuk praktikum jaringan', 3, 'baik', '2023-01-10', 5000000, 2, 3),
-('Switch Cisco', 'NET-002', 'Switch Cisco Catalyst 2960 24 Port', 5, 'baik', '2023-01-10', 3500000, 2, 3);
+INSERT INTO barang (nama, kode, deskripsi, jumlah, kondisi, tanggal_perolehan, id_kategori, id_lokasi) VALUES
+('Router Cisco', 'NET-001', 'Router Cisco 1941 untuk praktikum jaringan', 3, 'baik', '2023-01-10', 2, 3),
+('Switch Cisco', 'NET-002', 'Switch Cisco Catalyst 2960 24 Port', 5, 'baik', '2023-01-10', 2, 3);
 
 -- ========================================================================
 -- TRIGGER UNTUK MENJAGA INTEGRITAS DATA

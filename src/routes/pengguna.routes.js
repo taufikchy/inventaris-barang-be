@@ -27,4 +27,10 @@ router.post('/:id/reset-kata-sandi', adminToolmanAtauKepalaLab, penggunaControll
 // Rute untuk menghapus pengguna (hanya kepala lab)
 router.delete('/:id', adminToolmanAtauKepalaLab, penggunaController.hapusPengguna);
 
+// Rute untuk menonaktifkan pengguna (hanya kepala lab)
+router.patch('/:id/nonaktifkan', adminToolmanAtauKepalaLab, penggunaController.nonaktifkanPengguna);
+
+// Rute untuk mengaktifkan pengguna (hanya kepala lab)
+router.patch('/:id/aktifkan', adminToolmanAtauKepalaLab, penggunaController.aktifkanPengguna);
+
 module.exports = router;
