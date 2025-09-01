@@ -16,6 +16,11 @@ const Kategori = sequelize.define('Kategori', {
   deskripsi: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  tipe: {
+    type: DataTypes.ENUM('alat', 'bahan'),
+    allowNull: false,
+    defaultValue: 'alat'
   }
 }, {
   tableName: 'kategori',

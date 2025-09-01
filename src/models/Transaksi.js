@@ -24,7 +24,7 @@ const Transaksi = sequelize.define('Transaksi', {
     }
   },
   jenis_transaksi: {
-    type: DataTypes.ENUM('masuk', 'keluar', 'rusak', 'hilang'),
+    type: DataTypes.ENUM('keluar', 'rusak', 'hilang'),
     allowNull: false
   },
   jumlah: {
@@ -43,26 +43,21 @@ const Transaksi = sequelize.define('Transaksi', {
     allowNull: false,
     defaultValue: DataTypes.NOW
   },
-  harga_satuan: {
-    type: DataTypes.DECIMAL(15, 2),
-    allowNull: true
-  },
-  total_harga: {
-    type: DataTypes.DECIMAL(15, 2),
-    allowNull: true
-  },
-  supplier: {
-    type: DataTypes.STRING(255),
-    allowNull: true
-  },
-  nomor_faktur: {
-    type: DataTypes.STRING(100),
-    allowNull: true
-  },
+
   status: {
     type: DataTypes.ENUM('pending', 'approved', 'rejected'),
     allowNull: false,
     defaultValue: 'pending'
+  },
+  stok_sebelum: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Stok sebelum transaksi (untuk tracking bahan)'
+  },
+  stok_sesudah: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Stok sesudah transaksi (untuk tracking bahan)'
   }
 }, {
   tableName: 'transaksi',

@@ -42,12 +42,15 @@ exports.dapatkanSemuaBarang = async (req, res) => {
       kondisiPencarian.kondisi = kondisi;
     }
     
+    // Exclude barang yang sudah dihapuskan
+    kondisiPencarian.status = { [Op.ne]: 'dihapuskan' };
+    
     // Dapatkan semua barang dengan status yang sudah benar
     // Tidak perlu update status satu per satu karena status sudah dikelola otomatis
     const semuaBarang = await Barang.findAll({
       where: kondisiPencarian,
       include: [
-        { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
+        { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
       ],
       order: [['kode', 'ASC']]
@@ -84,7 +87,10 @@ exports.dapatkanSemuaBarang = async (req, res) => {
           kode_grup: prefix,
           nama: itemData.nama,
           deskripsi: itemData.deskripsi,
-          jumlah: 0,
+          jumlah: itemData.kategori?.tipe === 'bahan' ? itemData.jumlah : 0,
+          satuan: itemData.satuan,
+          unit_per_set: itemData.unit_per_set,
+          unit_used: itemData.kategori?.tipe === 'bahan' ? (itemData.unit_used || 0) : 0,
           kondisi: itemData.kondisi,
           tanggal_perolehan: itemData.tanggal_perolehan,
           tahun_pengadaan: itemData.tahun_pengadaan,
@@ -102,7 +108,14 @@ exports.dapatkanSemuaBarang = async (req, res) => {
       barangGrouped[prefix].units.push(itemData);
       
       // Update jumlah total di grup
-      barangGrouped[prefix].jumlah += itemData.jumlah;
+      if (itemData.kategori?.tipe === 'bahan') {
+        // Untuk kategori bahan, gunakan jumlah dari record pertama (tidak dijumlahkan)
+        barangGrouped[prefix].jumlah = itemData.jumlah;
+        barangGrouped[prefix].unit_used = itemData.unit_used || 0;
+      } else {
+        // Untuk kategori alat, jumlahkan semua unit
+        barangGrouped[prefix].jumlah += itemData.jumlah;
+      }
     });
     
     // Konversi objek grup ke array
@@ -114,9 +127,22 @@ exports.dapatkanSemuaBarang = async (req, res) => {
     // Terapkan pagination pada array grup
     const barangPaginated = barangGroupedArray.slice(offset, offset + parseInt(batas));
     
-    // Tambahkan jumlah_tersedia yang sama dengan jumlah
+    // Tambahkan jumlah_tersedia dan stok untuk kategori bahan
     barangPaginated.forEach(item => {
       item.jumlah_tersedia = item.jumlah;
+      // Untuk kategori bahan, hitung stok tersisa
+      if (item.kategori && item.kategori.tipe === 'bahan') {
+        if (item.satuan === 'set' && item.unit_per_set && item.unit_per_set > 0) {
+          // Untuk satuan set, hitung unit tersisa
+          const totalUnits = item.jumlah * item.unit_per_set;
+          const unitTersisa = totalUnits - (item.unit_used || 0);
+          item.stok = Math.floor(unitTersisa / item.unit_per_set); // Set tersisa
+          item.unit_tersisa = unitTersisa % item.unit_per_set; // Unit tersisa dalam set yang sedang digunakan
+        } else {
+          // Untuk satuan non-set, stok sama dengan jumlah
+          item.stok = item.jumlah;
+        }
+      }
     });
     
     res.status(200).json({
@@ -144,7 +170,9 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
   try {
     const { tersedia, kategori, lokasi, kondisi } = req.query;
     
-    let kondisiPencarian = {};
+    let kondisiPencarian = {
+      status: { [Op.ne]: 'dihapuskan' } // Exclude deleted items
+    };
     
     // Jika parameter tersedia=true, hanya tampilkan barang yang tersedia
     if (tersedia === 'true') {
@@ -169,7 +197,7 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
     const barang = await Barang.findAll({
       where: kondisiPencarian,
       include: [
-        { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
+        { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
       ],
       order: [['nama', 'ASC']]
@@ -195,6 +223,14 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
       itemData.status = statusFrontendMapping[itemData.status] || itemData.status;
       // Tambahkan jumlah_tersedia yang sama dengan jumlah
       itemData.jumlah_tersedia = itemData.jumlah;
+      // Untuk kategori bahan, stok tersisa sama dengan jumlah saat ini
+      if (itemData.kategori && itemData.kategori.tipe === 'bahan') {
+        itemData.stok = itemData.jumlah;
+      }
+      // Ensure unit_used is included for set items
+      if (!itemData.unit_used) {
+        itemData.unit_used = 0;
+      }
       return itemData;
     });
     
@@ -219,7 +255,7 @@ exports.dapatkanBarangById = async (req, res) => {
     
     const barang = await Barang.findByPk(id, {
       include: [
-        { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
+        { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
       ]
     });
@@ -251,6 +287,11 @@ exports.dapatkanBarangById = async (req, res) => {
     
     // Tambahkan jumlah_tersedia yang sama dengan jumlah
     barangData.jumlah_tersedia = barangData.jumlah;
+    // Untuk kategori bahan, stok tersisa sama dengan jumlah saat ini
+    // (jumlah sudah dikurangi saat transaksi keluar dibuat)
+    if (barangData.kategori && barangData.kategori.tipe === 'bahan') {
+      barangData.stok = barangData.jumlah;
+    }
     
     // Dapatkan prefix kode (3 huruf pertama sebelum tanda -)
     const prefix = barangData.kode.split('-')[0];
@@ -266,7 +307,7 @@ exports.dapatkanBarangById = async (req, res) => {
         }
       },
       include: [
-        { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
+        { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
       ]
     });
@@ -277,6 +318,11 @@ exports.dapatkanBarangById = async (req, res) => {
       unitData.kondisi = kondisiFrontendMapping[unitData.kondisi] || unitData.kondisi;
       unitData.status = statusFrontendMapping[unitData.status] || unitData.status;
       unitData.jumlah_tersedia = unitData.jumlah;
+      // Untuk kategori bahan, stok tersisa sama dengan jumlah saat ini
+      // (jumlah sudah dikurangi saat transaksi keluar dibuat)
+      if (unitData.kategori && unitData.kategori.tipe === 'bahan') {
+        unitData.stok = unitData.jumlah;
+      }
       return unitData;
     });
     
@@ -302,7 +348,7 @@ exports.dapatkanBarangById = async (req, res) => {
 // Membuat barang baru
 exports.buatBarang = async (req, res) => {
   try {
-    const { nama, deskripsi, jumlah, kondisi, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi } = req.body;
+    const { nama, deskripsi, jumlah, satuan, unit_per_set, kondisi, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi } = req.body;
     
     // Validasi input
     if (!nama || !id_kategori || !id_lokasi) {
@@ -376,25 +422,19 @@ exports.buatBarang = async (req, res) => {
     
     const kondisiDatabase = kondisi ? kondisiMapping[kondisi] || kondisi.toLowerCase().replace(' ', '_') : 'baik';
     
-    // Buat array untuk menyimpan semua barang yang dibuat
+    // Logika berbeda untuk kategori bahan vs alat
     const barangBaruArray = [];
     const jumlahBarang = parseInt(jumlah) || 1;
     
-    // Buat barang dengan kode unik untuk setiap unit
-    for (let i = 0; i < jumlahBarang; i++) {
-      // Format nomor urut dengan leading zeros (6 digit)
-      const currentNumber = nextNumber + i;
-      const formattedNumber = String(currentNumber).padStart(6, '0');
-      
-      // Buat kode barang final untuk unit ini
-      const kodeUnit = `${prefix}-${formattedNumber}`;
-      
-      // Buat barang baru dengan kode unik
+    if (kategori.tipe === 'bahan') {
+      // Untuk kategori bahan, simpan jumlah sesuai input (tidak dipecah per unit)
       const barangBaru = await Barang.create({
         nama,
-        kode: kodeUnit,
+        kode,
         deskripsi,
-        jumlah: 1, // Setiap record mewakili 1 unit barang
+        jumlah: parseInt(jumlah) || 1, // Simpan jumlah sesuai input
+        satuan: satuan || 'unit',
+        unit_per_set: unit_per_set || null,
         kondisi: kondisiDatabase,
         tanggal_perolehan,
         tahun_pengadaan,
@@ -404,12 +444,41 @@ exports.buatBarang = async (req, res) => {
       });
       
       barangBaruArray.push(barangBaru);
+    } else {
+      // Untuk kategori alat, buat record terpisah untuk setiap unit
+      
+      for (let i = 0; i < jumlahBarang; i++) {
+        // Format nomor urut dengan leading zeros (6 digit)
+        const currentNumber = nextNumber + i;
+        const formattedNumber = String(currentNumber).padStart(6, '0');
+        
+        // Buat kode barang final untuk unit ini
+        const kodeUnit = `${prefix}-${formattedNumber}`;
+        
+        // Buat barang baru dengan kode unik
+        const barangBaru = await Barang.create({
+          nama,
+          kode: kodeUnit,
+          deskripsi,
+          jumlah: 1, // Setiap record mewakili 1 unit barang
+          satuan: satuan || 'unit',
+          unit_per_set: unit_per_set || null,
+          kondisi: kondisiDatabase,
+          tanggal_perolehan,
+          tahun_pengadaan,
+          gambar: gambarPath,
+          id_kategori,
+          id_lokasi
+        });
+        
+        barangBaruArray.push(barangBaru);
+      }
     }
     
     // Dapatkan data barang lengkap dengan relasi untuk barang pertama yang dibuat
     const barangDenganRelasi = await Barang.findByPk(barangBaruArray[0].id, {
       include: [
-        { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
+        { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
       ]
     });
@@ -425,6 +494,10 @@ exports.buatBarang = async (req, res) => {
     barangData.kondisi = kondisiFrontendMapping[barangData.kondisi] || barangData.kondisi;
     // Tambahkan jumlah_tersedia yang sama dengan jumlah
     barangData.jumlah_tersedia = barangData.jumlah;
+    // Untuk kategori bahan, stok tersisa sama dengan jumlah saat ini
+    if (barangData.kategori && barangData.kategori.tipe === 'bahan') {
+      barangData.stok = barangData.jumlah;
+    }
     
     // Buat daftar kode barang yang dibuat
     const kodeBarangList = barangBaruArray.map(item => item.kode);
@@ -455,7 +528,7 @@ exports.buatBarang = async (req, res) => {
 exports.updateBarang = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nama, kode, deskripsi, jumlah, kondisi, status, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi } = req.body;
+    const { nama, kode, deskripsi, jumlah, kondisi, status, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi, satuan, unit_per_set } = req.body;
     
     // Cek apakah barang ada
     const barang = await Barang.findByPk(id);
@@ -535,6 +608,8 @@ exports.updateBarang = async (req, res) => {
       kode: kode || barang.kode,
       deskripsi: deskripsi !== undefined ? deskripsi : barang.deskripsi,
       jumlah: jumlah !== undefined ? jumlah : barang.jumlah,
+      satuan: satuan !== undefined ? satuan : barang.satuan,
+      unit_per_set: unit_per_set !== undefined ? unit_per_set : barang.unit_per_set,
       kondisi: kondisiDatabase,
       status: statusDatabase,
       tanggal_perolehan: tanggal_perolehan || barang.tanggal_perolehan,
@@ -547,7 +622,7 @@ exports.updateBarang = async (req, res) => {
     // Dapatkan data barang yang sudah diupdate dengan relasi
     const barangUpdated = await Barang.findByPk(id, {
       include: [
-        { model: Kategori, as: 'kategori', attributes: ['id', 'nama'] },
+        { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
       ]
     });
@@ -571,6 +646,10 @@ exports.updateBarang = async (req, res) => {
     barangData.status = statusFrontendMapping[barangData.status] || barangData.status;
     // Tambahkan jumlah_tersedia yang sama dengan jumlah
     barangData.jumlah_tersedia = barangData.jumlah;
+    // Untuk kategori bahan, stok tersisa sama dengan jumlah saat ini
+    if (barangData.kategori && barangData.kategori.tipe === 'bahan') {
+      barangData.stok = barangData.jumlah;
+    }
     
     // Pastikan nama kategori dan lokasi tersedia untuk activity logger
     if (barangData.kategori) {

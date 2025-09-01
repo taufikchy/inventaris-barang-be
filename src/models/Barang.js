@@ -28,6 +28,21 @@ const Barang = sequelize.define('Barang', {
     allowNull: false,
     defaultValue: 0
   },
+  satuan: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  unit_per_set: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Jumlah unit dalam 1 set (untuk kategori bahan dengan satuan set)'
+  },
+  unit_used: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    comment: 'Jumlah unit yang sudah digunakan dari set (untuk kategori bahan dengan satuan set)'
+  },
   kondisi: {
     type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
     defaultValue: 'baik'

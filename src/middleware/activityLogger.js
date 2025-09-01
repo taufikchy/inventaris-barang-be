@@ -88,6 +88,12 @@ const logActivity = (jenis_aktivitas, modul) => {
               deskripsi = `Menambahkan ${modul} baru untuk ${data?.nama_peminjam || 'peminjam'}`;
               id_objek = data?.id;
               nama_objek = data?.kode_peminjaman || data?.nama_peminjam || `Peminjaman #${data?.id}`;
+            } else if (modul === 'transaksi') {
+              const jenisTransaksi = data?.jenis_transaksi || 'transaksi';
+              const namaBarang = data?.barang?.nama || data?.nama_barang || 'barang';
+              deskripsi = `Menambahkan transaksi ${jenisTransaksi} untuk barang: ${namaBarang}`;
+              id_objek = data?.id;
+              nama_objek = `Transaksi ${jenisTransaksi} - ${namaBarang}`;
             } else {
               deskripsi = `Menambahkan ${modul} baru: ${data?.nama || data?.kode || 'item baru'}`;
               id_objek = data?.id;
@@ -100,6 +106,12 @@ const logActivity = (jenis_aktivitas, modul) => {
               deskripsi = `Memperbarui ${modul} untuk ${data?.nama_peminjam || originalData?.nama_peminjam || 'peminjam'}`;
               id_objek = data?.id || originalData?.id;
               nama_objek = data?.kode_peminjaman || originalData?.kode_peminjaman || data?.nama_peminjam || originalData?.nama_peminjam || `Peminjaman #${data?.id || originalData?.id}`;
+            } else if (modul === 'transaksi') {
+              const jenisTransaksi = data?.jenis_transaksi || originalData?.jenis_transaksi || 'transaksi';
+              const namaBarang = data?.barang?.nama || originalData?.barang?.nama || data?.nama_barang || originalData?.nama_barang || 'barang';
+              deskripsi = `Memperbarui transaksi ${jenisTransaksi} untuk barang: ${namaBarang}`;
+              id_objek = data?.id || originalData?.id;
+              nama_objek = `Transaksi ${jenisTransaksi} - ${namaBarang}`;
             } else {
               deskripsi = `Memperbarui ${modul}: ${data?.nama || data?.kode || originalData?.nama || originalData?.kode || 'item'}`;
               id_objek = data?.id || originalData?.id;
@@ -113,6 +125,12 @@ const logActivity = (jenis_aktivitas, modul) => {
               deskripsi = `Menghapus ${modul} untuk ${originalData?.nama_peminjam || 'peminjam'}`;
               id_objek = originalData?.id;
               nama_objek = originalData?.kode_peminjaman || originalData?.nama_peminjam || `Peminjaman #${originalData?.id}`;
+            } else if (modul === 'transaksi') {
+              const jenisTransaksi = originalData?.jenis_transaksi || 'transaksi';
+              const namaBarang = originalData?.barang?.nama || originalData?.nama_barang || 'barang';
+              deskripsi = `Menghapus transaksi ${jenisTransaksi} untuk barang: ${namaBarang}`;
+              id_objek = originalData?.id;
+              nama_objek = `Transaksi ${jenisTransaksi} - ${namaBarang}`;
             } else {
               deskripsi = `Menghapus ${modul}: ${originalData?.nama || originalData?.kode || 'item'}`;
               id_objek = originalData?.id;

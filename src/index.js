@@ -11,6 +11,7 @@ const ruteBarang = require('./routes/barang.routes');
 const ruteKategori = require('./routes/kategori.routes');
 const ruteLokasi = require('./routes/lokasi.routes');
 const rutePeminjaman = require('./routes/peminjaman.routes');
+const ruteTransaksi = require('./routes/transaksi.routes');
 const ruteHistoriAktivitas = require('./routes/historiAktivitas.routes');
 const ruteLaporan = require('./routes/laporan.routes');
 const ruteDashboard = require('./routes/dashboard.routes');
@@ -23,7 +24,7 @@ app.set('trust proxy', true);
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5001', 'http://localhost:5002', 'http://localhost:3000'],
+  origin: ['http://localhost:5001', 'http://localhost:5002', 'http://localhost:3000', 'http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -54,6 +55,7 @@ app.use('/api/barang', ruteBarang);
 app.use('/api/kategori', ruteKategori);
 app.use('/api/lokasi', ruteLokasi);
 app.use('/api/peminjaman', rutePeminjaman);
+app.use('/api/transaksi', ruteTransaksi);
 app.use('/api/histori-aktivitas', ruteHistoriAktivitas);
 app.use('/api/laporan', ruteLaporan);
 app.use('/api/dashboard', ruteDashboard);
