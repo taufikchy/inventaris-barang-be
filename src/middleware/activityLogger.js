@@ -200,6 +200,12 @@ const saveOriginalData = (Model) => {
             include: [{ model: Barang, as: 'barang', attributes: ['id', 'nama'] }]
           }
         ];
+      } else if (Model.name === 'Transaksi') {
+        const { Barang, Pengguna } = require('../models');
+        includeOptions = [
+          { model: Barang, as: 'barang', attributes: ['id', 'nama'] },
+          { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama'] }
+        ];
       }
       
       const instance = await Model.findByPk(req.params.id, {
@@ -237,6 +243,33 @@ const saveOriginalData = (Model) => {
           }
           if (originalData.status) {
             originalData.status = statusFrontendMapping[originalData.status] || originalData.status;
+          }
+        } else if (Model.name === 'Transaksi') {
+          // Tambahkan nama barang dan pengguna untuk model Transaksi
+          if (originalData.barang) {
+            originalData.nama_barang = originalData.barang.nama;
+          }
+          if (originalData.pengguna) {
+            originalData.nama_pengguna = originalData.pengguna.nama;
+          }
+          
+          // Konversi jenis_transaksi dan status ke format frontend untuk konsistensi
+          const jenisTransaksiFrontendMapping = {
+            'masuk': 'Masuk',
+            'keluar': 'Keluar'
+          };
+          
+          const statusTransaksiFrontendMapping = {
+            'pending': 'Pending',
+            'approved': 'Disetujui',
+            'rejected': 'Ditolak'
+          };
+          
+          if (originalData.jenis_transaksi) {
+            originalData.jenis_transaksi = jenisTransaksiFrontendMapping[originalData.jenis_transaksi] || originalData.jenis_transaksi;
+          }
+          if (originalData.status) {
+            originalData.status = statusTransaksiFrontendMapping[originalData.status] || originalData.status;
           }
         }
         
