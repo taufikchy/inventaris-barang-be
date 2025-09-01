@@ -123,11 +123,11 @@ const DetailPeminjaman = sequelize.define('DetailPeminjaman', {
     allowNull: true
   },
   kondisi_saat_pinjam: {
-    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak'),
+    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
     defaultValue: 'baik'
   },
   kondisi_saat_kembali: {
-    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak'),
+    type: DataTypes.ENUM('baik', 'rusak_ringan', 'rusak_berat'),
     allowNull: true
   },
   catatan_kondisi: {
