@@ -122,6 +122,9 @@ exports.buatPengguna = async (req, res) => {
     const respons = penggunaBaru.toJSON();
     delete respons.kata_sandi;
     
+    // Simpan data untuk logging aktivitas
+    res.locals.originalData = respons;
+    
     res.status(201).json({
       sukses: true,
       pesan: 'Pengguna berhasil dibuat.',
@@ -153,6 +156,10 @@ exports.perbaruiPengguna = async (req, res) => {
       });
     }
     
+    // Simpan data sebelum perubahan untuk logging
+    const dataSebelum = pengguna.toJSON();
+    delete dataSebelum.kata_sandi;
+    
     // Periksa apakah nama pengguna sudah digunakan oleh pengguna lain
     if (nama_pengguna && nama_pengguna !== pengguna.nama_pengguna) {
       const penggunaSudahAda = await Pengguna.findOne({
@@ -182,6 +189,12 @@ exports.perbaruiPengguna = async (req, res) => {
     // Hapus kata sandi dari respons
     const respons = pengguna.toJSON();
     delete respons.kata_sandi;
+    
+    // Simpan data untuk logging aktivitas
+    res.locals.originalData = {
+      dataSebelum,
+      dataSesudah: respons
+    };
     
     res.status(200).json({
       sukses: true,
@@ -257,6 +270,10 @@ exports.hapusPengguna = async (req, res) => {
       });
     }
     
+    // Simpan data sebelum penghapusan untuk logging
+    const dataSebelum = pengguna.toJSON();
+    delete dataSebelum.kata_sandi;
+    
     // Periksa apakah pengguna yang akan dihapus adalah admin terakhir
     if (pengguna.peran === 'admin') {
       const jumlahAdmin = await Pengguna.count({
@@ -331,6 +348,9 @@ exports.hapusPengguna = async (req, res) => {
     // Commit transaction
     await transaction.commit();
     
+    // Simpan data untuk logging aktivitas
+    res.locals.originalData = dataSebelum;
+    
     res.status(200).json({
       sukses: true,
       pesan: 'Pengguna berhasil dihapus beserta data terkait.',
@@ -391,6 +411,10 @@ exports.nonaktifkanPengguna = async (req, res) => {
       });
     }
     
+    // Simpan data sebelum perubahan untuk logging
+    const dataSebelum = pengguna.toJSON();
+    delete dataSebelum.kata_sandi;
+    
     // Periksa apakah pengguna mencoba menonaktifkan dirinya sendiri
     if (parseInt(id) === penggunaLogin.id) {
       return res.status(400).json({
@@ -418,6 +442,14 @@ exports.nonaktifkanPengguna = async (req, res) => {
     
     // Nonaktifkan pengguna
     await pengguna.update({ aktif: false });
+    
+    // Simpan data untuk logging aktivitas
+    const dataSesudah = pengguna.toJSON();
+    delete dataSesudah.kata_sandi;
+    res.locals.originalData = {
+      dataSebelum,
+      dataSesudah
+    };
     
     res.status(200).json({
       sukses: true,
@@ -455,8 +487,20 @@ exports.aktifkanPengguna = async (req, res) => {
       });
     }
     
+    // Simpan data sebelum perubahan untuk logging
+    const dataSebelum = pengguna.toJSON();
+    delete dataSebelum.kata_sandi;
+    
     // Aktifkan pengguna
     await pengguna.update({ aktif: true });
+    
+    // Simpan data untuk logging aktivitas
+    const dataSesudah = pengguna.toJSON();
+    delete dataSesudah.kata_sandi;
+    res.locals.originalData = {
+      dataSebelum,
+      dataSesudah
+    };
     
     res.status(200).json({
       sukses: true,
