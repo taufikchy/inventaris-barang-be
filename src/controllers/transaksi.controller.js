@@ -56,11 +56,12 @@ const getAllTransaksi = async (req, res) => {
           model: Barang,
           as: 'barang',
           where: Object.keys(barangWhereClause).length > 0 ? barangWhereClause : undefined,
+          attributes: ['id', 'nama', 'satuan', 'unit_per_set'],
           include: [
             {
               model: Kategori,
               as: 'kategori',
-              attributes: ['id', 'nama']
+              attributes: ['id', 'nama', 'tipe']
             }
           ]
         },
@@ -105,11 +106,12 @@ const getTransaksiById = async (req, res) => {
         {
           model: Barang,
           as: 'barang',
+          attributes: ['id', 'nama', 'satuan', 'unit_per_set'],
           include: [
             {
               model: Kategori,
               as: 'kategori',
-              attributes: ['id', 'nama']
+              attributes: ['id', 'nama', 'tipe']
             }
           ]
         },
@@ -151,10 +153,7 @@ const createTransaksi = async (req, res) => {
       id_barang,
       jenis_transaksi,
       jumlah,
-      keterangan,
-      harga_satuan,
-      supplier,
-      nomor_faktur
+      keterangan
     } = req.body;
 
     const id_pengguna = req.pengguna.id;
@@ -167,8 +166,15 @@ const createTransaksi = async (req, res) => {
       });
     }
 
-    // Get item data
-    const barang = await Barang.findByPk(id_barang, { transaction });
+    // Get item data with category
+    const barang = await Barang.findByPk(id_barang, { 
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: ['id', 'nama', 'tipe']
+      }],
+      transaction 
+    });
     if (!barang) {
       await transaction.rollback();
       return res.status(404).json({
@@ -177,72 +183,190 @@ const createTransaksi = async (req, res) => {
       });
     }
 
+    // Validate that only 'bahan' category items can have inventory transactions
+    if (!barang.kategori || barang.kategori.tipe !== 'bahan') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Transaksi inventaris hanya dapat dilakukan untuk barang kategori bahan. Untuk kategori alat, gunakan sistem peminjaman.'
+      });
+    }
+
+    // Validate transaction type - only allow outgoing transactions
+    if (!['keluar', 'rusak', 'hilang'].includes(jenis_transaksi)) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Jenis transaksi tidak valid. Hanya transaksi keluar, rusak, dan hilang yang diizinkan.'
+      });
+    }
+
+    // Handle unit tracking for set items
+    let jumlahTransaksi = parseInt(jumlah);
+    let jumlahStok = jumlahTransaksi;
+    let newUnitUsed = barang.unit_used || 0;
+    
+    // For 'set' items, track unit usage instead of converting to sets
+    if (barang.satuan === 'set' && barang.unit_per_set && barang.unit_per_set > 0) {
+      // jumlahTransaksi remains in units for transaction record
+      // For stock calculation, only reduce set count when a full set is consumed
+      newUnitUsed += jumlahTransaksi;
+      // Calculate how many complete sets are consumed
+      const setsConsumed = Math.floor(newUnitUsed / barang.unit_per_set);
+      const currentSetsConsumed = Math.floor(barang.unit_used / barang.unit_per_set);
+      jumlahStok = setsConsumed - currentSetsConsumed; // Only reduce by newly consumed sets
+      newUnitUsed = newUnitUsed % barang.unit_per_set; // Keep remainder for next usage
+    }
+
     // Validate stock for outgoing transactions
     if (['keluar', 'rusak', 'hilang'].includes(jenis_transaksi)) {
-      if (barang.jumlah < jumlah) {
+      // For 'set' items, validate against available units including unused units in current sets
+      let availableUnits = barang.jumlah;
+      if (barang.satuan === 'set' && barang.unit_per_set && barang.unit_per_set > 0) {
+        const totalUnits = barang.jumlah * barang.unit_per_set;
+        const usedUnits = barang.unit_used || 0;
+        availableUnits = totalUnits - usedUnits;
+      }
+      
+      if (availableUnits < jumlahTransaksi) {
         await transaction.rollback();
+        const stockMessage = barang.satuan === 'set' && barang.unit_per_set 
+          ? `${availableUnits} unit tersisa (${barang.jumlah} set, ${barang.unit_used || 0} unit terpakai)`
+          : `${barang.jumlah}`;
         return res.status(400).json({
           success: false,
-          message: `Stok tidak mencukupi. Stok tersedia: ${barang.jumlah}`
+          message: `Stok tidak mencukupi. Stok tersedia: ${stockMessage}`
         });
+      }
+      
+      // Special handling for 'bahan' category - allow partial usage
+      if (barang.kategori && barang.kategori.tipe === 'bahan' && jenis_transaksi === 'keluar') {
+        // For materials, we allow partial usage and track remaining stock
+        // This is already handled by the stock update logic below
       }
     }
 
-    // Calculate total price
-    const total_harga = harga_satuan ? harga_satuan * jumlah : null;
-
-    // Create transaction record
+    // Store stock before transaction for tracking
+    let stokSebelum = barang.jumlah;
+    let stokSesudah = barang.jumlah;
+    
+    // For 'set' items, calculate stock in terms of remaining units in current set
+    if (barang.satuan === 'set' && barang.unit_per_set && barang.unit_per_set > 0) {
+      const currentUnitUsed = barang.unit_used || 0;
+      const totalUnits = barang.jumlah * barang.unit_per_set;
+      const availableUnits = totalUnits - currentUnitUsed;
+      
+      // Stok sebelum: unit yang tersedia sebelum transaksi
+      stokSebelum = availableUnits;
+      
+      // Stok sesudah: unit yang tersisa setelah transaksi
+      stokSesudah = availableUnits - jumlahTransaksi;
+    }
+    
+    // Create transaction record (store in units for transaction history)
     const transaksi = await Transaksi.create({
       id_barang,
       id_pengguna,
       jenis_transaksi,
-      jumlah,
+      jumlah: jumlahTransaksi, // Store in units
       keterangan,
-      harga_satuan,
-      total_harga,
-      supplier,
-      nomor_faktur,
-      tanggal_transaksi: new Date()
+      tanggal_transaksi: new Date(),
+      stok_sebelum: stokSebelum,
+      status: 'approved' // Transaksi inventaris bahan langsung disetujui
     }, { transaction });
 
-    // Update item stock
+    // Update item stock and unit_used (use converted amount for set items)
     let newStock = barang.jumlah;
-    if (jenis_transaksi === 'masuk') {
-      newStock += parseInt(jumlah);
-    } else if (['keluar', 'rusak', 'hilang'].includes(jenis_transaksi)) {
-      newStock -= parseInt(jumlah);
+    let updateData = {};
+    
+    // Only handle outgoing transactions
+    newStock -= jumlahStok;
+    updateData.jumlah = newStock;
+    // Update unit_used for set items
+    if (barang.satuan === 'set' && barang.unit_per_set && barang.unit_per_set > 0) {
+      updateData.unit_used = newUnitUsed;
+      // Recalculate stok_sesudah after update
+      const newTotalUnits = newStock * barang.unit_per_set;
+      const newAvailableUnits = newTotalUnits - newUnitUsed;
+      stokSesudah = newAvailableUnits;
+    } else {
+      // For non-set items, stok_sesudah is just the new stock
+      stokSesudah = newStock;
     }
 
-    await barang.update({ jumlah: newStock }, { transaction });
+    await barang.update(updateData, { transaction });
+    
+    // Update transaction record with stock after transaction
+    await transaksi.update({ stok_sesudah: stokSesudah }, { transaction });
+
+    // Auto-delete logic for 'bahan' category items with 0 stock
+    let isItemDeleted = false;
+    if (barang.kategori && barang.kategori.tipe === 'bahan') {
+      // Check if stock is 0 after transaction
+      let finalStock = newStock;
+      if (barang.satuan === 'set' && barang.unit_per_set && barang.unit_per_set > 0) {
+        // For set items, check if no units are available
+        const totalUnits = newStock * barang.unit_per_set;
+        const availableUnits = totalUnits - newUnitUsed;
+        finalStock = availableUnits;
+      }
+      
+      if (finalStock <= 0) {
+        // Instead of deleting, mark item as 'dihapuskan' to avoid foreign key constraint issues
+        await barang.update({ status: 'dihapuskan' }, { transaction });
+        isItemDeleted = true;
+        console.log(`Auto-marked item as deleted ${barang.nama} (ID: ${barang.id}) - stock reached 0`);
+      }
+    }
 
     await transaction.commit();
 
-    // Get the created transaction with relations
-    const createdTransaksi = await Transaksi.findByPk(transaksi.id, {
-      include: [
-        {
-          model: Barang,
-          as: 'barang',
-          include: [
-            {
-              model: Kategori,
-              as: 'kategori',
-              attributes: ['id', 'nama']
-            }
-          ]
-        },
-        {
-          model: Pengguna,
-          as: 'pengguna',
-          attributes: ['id', 'nama', 'nama_pengguna']
-        }
-      ]
-    });
+    // Get the created transaction with relations (only if item wasn't deleted)
+    let createdTransaksi = null;
+    if (!isItemDeleted) {
+      createdTransaksi = await Transaksi.findByPk(transaksi.id, {
+        include: [
+          {
+            model: Barang,
+            as: 'barang',
+            include: [
+              {
+                model: Kategori,
+                as: 'kategori',
+                attributes: ['id', 'nama']
+              }
+            ]
+          },
+          {
+            model: Pengguna,
+            as: 'pengguna',
+            attributes: ['id', 'nama', 'nama_pengguna']
+          }
+        ]
+      });
+    } else {
+      // If item was deleted, get transaction without barang relation
+      createdTransaksi = await Transaksi.findByPk(transaksi.id, {
+        include: [
+          {
+            model: Pengguna,
+            as: 'pengguna',
+            attributes: ['id', 'nama', 'nama_pengguna']
+          }
+        ]
+      });
+    }
+
+    const responseMessage = isItemDeleted 
+      ? `Transaksi berhasil dibuat. Barang "${barang.nama}" telah dihapus otomatis karena stok mencapai 0.`
+      : 'Transaksi berhasil dibuat';
 
     res.status(201).json({
       success: true,
-      message: 'Transaksi berhasil dibuat',
-      data: createdTransaksi
+      message: responseMessage,
+      data: createdTransaksi,
+      itemDeleted: isItemDeleted,
+      deletedItemName: isItemDeleted ? barang.nama : null
     });
   } catch (error) {
     if (!transaction.finished) {
@@ -252,6 +376,119 @@ const createTransaksi = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal membuat transaksi',
+      error: error.message
+    });
+  }
+};
+
+// Update transaction
+const updateTransaksi = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { id } = req.params;
+    const {
+      id_barang,
+      jenis_transaksi,
+      jumlah,
+      keterangan,
+      status
+    } = req.body;
+
+    // Find existing transaction
+    const existingTransaksi = await Transaksi.findByPk(id, {
+      include: [{ model: Barang }],
+      transaction
+    });
+
+    if (!existingTransaksi) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Transaksi tidak ditemukan'
+      });
+    }
+
+    // Get item info
+    const barang = await Barang.findByPk(id_barang, { transaction });
+    if (!barang) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Barang tidak ditemukan'
+      });
+    }
+
+    // Calculate stock changes
+    const oldJumlah = existingTransaksi.jumlah;
+    const oldJenis = existingTransaksi.jenis_transaksi;
+    const newJumlah = parseInt(jumlah);
+    const newJenis = jenis_transaksi;
+
+    // Reverse old transaction effect on stock
+    let stockAdjustment = 0;
+    if (oldJenis === 'masuk') {
+      stockAdjustment -= oldJumlah; // Remove previous addition
+    } else if (['keluar', 'rusak', 'hilang'].includes(oldJenis)) {
+      stockAdjustment += oldJumlah; // Remove previous subtraction
+    }
+
+    // Apply new transaction effect on stock
+    if (newJenis === 'masuk') {
+      stockAdjustment += newJumlah;
+    } else if (['keluar', 'rusak', 'hilang'].includes(newJenis)) {
+      stockAdjustment -= newJumlah;
+    }
+
+    const newStok = barang.stok + stockAdjustment;
+
+    // Validate stock
+    if (newStok < 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Stok tidak mencukupi. Stok tersedia: ${barang.stok}`
+      });
+    }
+
+    // Update item stock
+    await barang.update({ stok: newStok }, { transaction });
+
+    // Update transaction
+    const updatedTransaksi = await existingTransaksi.update({
+      id_barang,
+      jenis_transaksi: newJenis,
+      jumlah: newJumlah,
+      keterangan,
+      status: status || 'approved',
+      stok_sebelum: barang.stok - stockAdjustment,
+      stok_sesudah: newStok
+    }, { transaction });
+
+    await transaction.commit();
+
+    // Fetch updated transaction with relations
+    const result = await Transaksi.findByPk(updatedTransaksi.id, {
+      include: [
+        {
+          model: Barang,
+          include: [{ model: Kategori }]
+        },
+        { model: Pengguna }
+      ]
+    });
+
+    res.json({
+      success: true,
+      message: 'Transaksi berhasil diperbarui',
+      data: result
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error updating transaction:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal memperbarui transaksi',
       error: error.message
     });
   }
@@ -303,7 +540,15 @@ const deleteTransaksi = async (req, res) => {
     const { id } = req.params;
 
     const transaksi = await Transaksi.findByPk(id, {
-      include: [{ model: Barang, as: 'barang' }],
+      include: [{ 
+        model: Barang, 
+        as: 'barang',
+        include: [{
+          model: Kategori,
+          as: 'kategori',
+          attributes: ['id', 'nama', 'tipe']
+        }]
+      }],
       transaction
     });
 
@@ -315,18 +560,41 @@ const deleteTransaksi = async (req, res) => {
       });
     }
 
+    // Only allow deletion of 'bahan' category transactions
+    if (!transaksi.barang.kategori || transaksi.barang.kategori.tipe !== 'bahan') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Hanya transaksi kategori bahan yang dapat dihapus'
+      });
+    }
+
     // Reverse the stock changes
     const barang = transaksi.barang;
-    let newStock = barang.jumlah;
+    let updateData = {};
     
-    if (transaksi.jenis_transaksi === 'masuk') {
-      newStock -= transaksi.jumlah;
-    } else if (['keluar', 'rusak', 'hilang'].includes(transaksi.jenis_transaksi)) {
-      newStock += transaksi.jumlah;
+    // Only handle outgoing transactions (masuk transactions are not allowed in current system)
+    if (['keluar', 'rusak', 'hilang'].includes(transaksi.jenis_transaksi)) {
+      if (barang.satuan === 'set' && barang.unit_per_set && barang.unit_per_set > 0) {
+        // For set items, reverse unit_used changes
+        const currentUnitUsed = barang.unit_used || 0;
+        const newUnitUsed = currentUnitUsed - transaksi.jumlah;
+        
+        // Calculate how many sets to add back
+        const currentSetsConsumed = Math.floor(currentUnitUsed / barang.unit_per_set);
+        const newSetsConsumed = Math.floor(Math.max(0, newUnitUsed) / barang.unit_per_set);
+        const setsToAddBack = currentSetsConsumed - newSetsConsumed;
+        
+        updateData.jumlah = barang.jumlah + setsToAddBack;
+        updateData.unit_used = Math.max(0, newUnitUsed) % barang.unit_per_set;
+      } else {
+        // For non-set items, simply add back the quantity
+        updateData.jumlah = barang.jumlah + transaksi.jumlah;
+      }
     }
 
     // Validate that stock won't go negative
-    if (newStock < 0) {
+    if (updateData.jumlah < 0) {
       await transaction.rollback();
       return res.status(400).json({
         success: false,
@@ -334,7 +602,7 @@ const deleteTransaksi = async (req, res) => {
       });
     }
 
-    await barang.update({ jumlah: newStock }, { transaction });
+    await barang.update(updateData, { transaction });
     await transaksi.destroy({ transaction });
 
     await transaction.commit();
@@ -430,6 +698,7 @@ module.exports = {
   getAllTransaksi,
   getTransaksiById,
   createTransaksi,
+  updateTransaksi,
   updateTransaksiStatus,
   deleteTransaksi,
   getTransaksiStats

@@ -88,31 +88,105 @@ const logActivity = (jenis_aktivitas, modul) => {
               deskripsi = `Menambahkan ${modul} baru untuk ${data?.nama_peminjam || 'peminjam'}`;
               id_objek = data?.id;
               nama_objek = data?.kode_peminjaman || data?.nama_peminjam || `Peminjaman #${data?.id}`;
+            } else if (modul === 'transaksi') {
+              const jenisTransaksi = data?.jenis_transaksi || 'transaksi';
+              const namaBarang = data?.barang?.nama || data?.nama_barang || 'barang';
+              deskripsi = `Menambahkan transaksi ${jenisTransaksi} untuk barang: ${namaBarang}`;
+              id_objek = data?.id;
+              nama_objek = `Transaksi ${jenisTransaksi} - ${namaBarang}`;
+            } else if (modul === 'pengguna') {
+              deskripsi = `Menambahkan pengguna baru: ${data?.nama || 'pengguna'} (${data?.nama_pengguna || 'username'})`;
+              id_objek = data?.id;
+              nama_objek = data?.nama || data?.nama_pengguna || `Pengguna #${data?.id}`;
             } else {
               deskripsi = `Menambahkan ${modul} baru: ${data?.nama || data?.kode || 'item baru'}`;
               id_objek = data?.id;
               nama_objek = data?.nama || data?.kode || `${modul} #${data?.id}`;
             }
-            data_sesudah = JSON.stringify(data);
+            data_sesudah = originalData || JSON.stringify(data);
             break;
           case 'update':
             if (modul === 'peminjaman') {
               deskripsi = `Memperbarui ${modul} untuk ${data?.nama_peminjam || originalData?.nama_peminjam || 'peminjam'}`;
               id_objek = data?.id || originalData?.id;
               nama_objek = data?.kode_peminjaman || originalData?.kode_peminjaman || data?.nama_peminjam || originalData?.nama_peminjam || `Peminjaman #${data?.id || originalData?.id}`;
+            } else if (modul === 'transaksi') {
+              const jenisTransaksi = data?.jenis_transaksi || originalData?.jenis_transaksi || 'transaksi';
+              const namaBarang = data?.barang?.nama || originalData?.barang?.nama || data?.nama_barang || originalData?.nama_barang || 'barang';
+              deskripsi = `Memperbarui transaksi ${jenisTransaksi} untuk barang: ${namaBarang}`;
+              id_objek = data?.id || originalData?.id;
+              nama_objek = `Transaksi ${jenisTransaksi} - ${namaBarang}`;
+            } else if (modul === 'pengguna') {
+              const dataSebelum = originalData?.dataSebelum || originalData;
+              const dataSesudah = originalData?.dataSesudah || data;
+              
+              // Tentukan jenis perubahan yang terjadi
+              let jenisPerubahan = [];
+              if (dataSebelum && dataSesudah) {
+                if (dataSebelum.nama !== dataSesudah.nama) {
+                  jenisPerubahan.push(`nama dari "${dataSebelum.nama}" menjadi "${dataSesudah.nama}"`);
+                }
+                if (dataSebelum.nama_pengguna !== dataSesudah.nama_pengguna) {
+                  jenisPerubahan.push(`username dari "${dataSebelum.nama_pengguna}" menjadi "${dataSesudah.nama_pengguna}"`);
+                }
+                if (dataSebelum.peran !== dataSesudah.peran) {
+                  jenisPerubahan.push(`peran dari "${dataSebelum.peran}" menjadi "${dataSesudah.peran}"`);
+                }
+                if (dataSebelum.aktif !== dataSesudah.aktif) {
+                  const statusSebelum = dataSebelum.aktif ? 'aktif' : 'nonaktif';
+                  const statusSesudah = dataSesudah.aktif ? 'aktif' : 'nonaktif';
+                  jenisPerubahan.push(`status dari ${statusSebelum} menjadi ${statusSesudah}`);
+                }
+                // Deteksi perubahan password (jika ada field kata_sandi yang berbeda)
+                if (dataSebelum.kata_sandi !== dataSesudah.kata_sandi && dataSesudah.kata_sandi) {
+                  jenisPerubahan.push('password');
+                }
+              }
+              
+              const namaUser = dataSesudah?.nama || dataSebelum?.nama || 'pengguna';
+               
+               // Deteksi khusus untuk aktivasi/deaktivasi
+               if (jenisPerubahan.length === 1 && jenisPerubahan[0].includes('status dari')) {
+                 if (jenisPerubahan[0].includes('nonaktif menjadi aktif')) {
+                   deskripsi = `Mengaktifkan pengguna: ${namaUser}`;
+                 } else if (jenisPerubahan[0].includes('aktif menjadi nonaktif')) {
+                   deskripsi = `Menonaktifkan pengguna: ${namaUser}`;
+                 } else {
+                   deskripsi = `Memperbarui ${jenisPerubahan.join(', ')} untuk pengguna: ${namaUser}`;
+                 }
+               } else if (jenisPerubahan.length > 0) {
+                 deskripsi = `Memperbarui ${jenisPerubahan.join(', ')} untuk pengguna: ${namaUser}`;
+               } else {
+                 deskripsi = `Memperbarui data pengguna: ${namaUser}`;
+               }
+              
+              id_objek = dataSesudah?.id || dataSebelum?.id;
+              nama_objek = namaUser;
+              data_sebelum = dataSebelum ? JSON.stringify(dataSebelum) : null;
+              data_sesudah = dataSesudah ? JSON.stringify(dataSesudah) : null;
             } else {
               deskripsi = `Memperbarui ${modul}: ${data?.nama || data?.kode || originalData?.nama || originalData?.kode || 'item'}`;
               id_objek = data?.id || originalData?.id;
               nama_objek = data?.nama || data?.kode || originalData?.nama || originalData?.kode || `${modul} #${data?.id || originalData?.id}`;
+              data_sebelum = originalData ? JSON.stringify(originalData) : null;
+              data_sesudah = JSON.stringify(data);
             }
-            data_sebelum = originalData ? JSON.stringify(originalData) : null;
-            data_sesudah = JSON.stringify(data);
             break;
           case 'delete':
             if (modul === 'peminjaman') {
               deskripsi = `Menghapus ${modul} untuk ${originalData?.nama_peminjam || 'peminjam'}`;
               id_objek = originalData?.id;
               nama_objek = originalData?.kode_peminjaman || originalData?.nama_peminjam || `Peminjaman #${originalData?.id}`;
+            } else if (modul === 'transaksi') {
+              const jenisTransaksi = originalData?.jenis_transaksi || 'transaksi';
+              const namaBarang = originalData?.barang?.nama || originalData?.nama_barang || 'barang';
+              deskripsi = `Menghapus transaksi ${jenisTransaksi} untuk barang: ${namaBarang}`;
+              id_objek = originalData?.id;
+              nama_objek = `Transaksi ${jenisTransaksi} - ${namaBarang}`;
+            } else if (modul === 'pengguna') {
+              deskripsi = `Menghapus pengguna: ${originalData?.nama || 'pengguna'} (${originalData?.nama_pengguna || 'username'})`;
+              id_objek = originalData?.id;
+              nama_objek = originalData?.nama || originalData?.nama_pengguna || `Pengguna #${originalData?.id}`;
             } else {
               deskripsi = `Menghapus ${modul}: ${originalData?.nama || originalData?.kode || 'item'}`;
               id_objek = originalData?.id;
@@ -182,6 +256,12 @@ const saveOriginalData = (Model) => {
             include: [{ model: Barang, as: 'barang', attributes: ['id', 'nama'] }]
           }
         ];
+      } else if (Model.name === 'Transaksi') {
+        const { Barang, Pengguna } = require('../models');
+        includeOptions = [
+          { model: Barang, as: 'barang', attributes: ['id', 'nama'] },
+          { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama'] }
+        ];
       }
       
       const instance = await Model.findByPk(req.params.id, {
@@ -219,6 +299,33 @@ const saveOriginalData = (Model) => {
           }
           if (originalData.status) {
             originalData.status = statusFrontendMapping[originalData.status] || originalData.status;
+          }
+        } else if (Model.name === 'Transaksi') {
+          // Tambahkan nama barang dan pengguna untuk model Transaksi
+          if (originalData.barang) {
+            originalData.nama_barang = originalData.barang.nama;
+          }
+          if (originalData.pengguna) {
+            originalData.nama_pengguna = originalData.pengguna.nama;
+          }
+          
+          // Konversi jenis_transaksi dan status ke format frontend untuk konsistensi
+          const jenisTransaksiFrontendMapping = {
+            'masuk': 'Masuk',
+            'keluar': 'Keluar'
+          };
+          
+          const statusTransaksiFrontendMapping = {
+            'pending': 'Pending',
+            'approved': 'Disetujui',
+            'rejected': 'Ditolak'
+          };
+          
+          if (originalData.jenis_transaksi) {
+            originalData.jenis_transaksi = jenisTransaksiFrontendMapping[originalData.jenis_transaksi] || originalData.jenis_transaksi;
+          }
+          if (originalData.status) {
+            originalData.status = statusTransaksiFrontendMapping[originalData.status] || originalData.status;
           }
         }
         

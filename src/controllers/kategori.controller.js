@@ -95,13 +95,21 @@ exports.dapatkanKategoriById = async (req, res) => {
 // Membuat kategori baru
 exports.buatKategori = async (req, res) => {
   try {
-    const { nama, deskripsi } = req.body;
+    const { nama, deskripsi, tipe } = req.body;
     
     // Validasi input
     if (!nama) {
       return res.status(400).json({
         sukses: false,
         pesan: 'Nama kategori diperlukan.'
+      });
+    }
+    
+    // Validasi tipe
+    if (tipe && !['alat', 'bahan'].includes(tipe)) {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Tipe kategori harus "alat" atau "bahan".'
       });
     }
     
@@ -120,7 +128,8 @@ exports.buatKategori = async (req, res) => {
     // Buat kategori baru
     const kategoriBaru = await Kategori.create({
       nama,
-      deskripsi
+      deskripsi,
+      tipe: tipe || 'alat'
     });
     
     res.status(201).json({
@@ -142,13 +151,21 @@ exports.buatKategori = async (req, res) => {
 exports.perbaruiKategori = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nama, deskripsi } = req.body;
+    const { nama, deskripsi, tipe } = req.body;
     
     // Validasi input
     if (!nama) {
       return res.status(400).json({
         sukses: false,
         pesan: 'Nama kategori diperlukan.'
+      });
+    }
+    
+    // Validasi tipe
+    if (tipe && !['alat', 'bahan'].includes(tipe)) {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Tipe kategori harus "alat" atau "bahan".'
       });
     }
     
@@ -182,6 +199,9 @@ exports.perbaruiKategori = async (req, res) => {
     // Perbarui data kategori
     kategori.nama = nama;
     kategori.deskripsi = deskripsi;
+    if (tipe) {
+      kategori.tipe = tipe;
+    }
     
     await kategori.save();
     
