@@ -336,29 +336,159 @@ const eksporHistoriAktivitas = async (req, res) => {
       order: [['waktu_aktivitas', 'DESC']]
     });
 
+    // Helper function to format date consistently
+    const formatTanggal = (date) => {
+      return new Date(date).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric'
+      });
+    };
+
+    const formatWaktu = (date) => {
+      return new Date(date).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    };
+
+    const formatDateTime = (date) => {
+      return new Date(date).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    };
+
+    // Get period description for metadata
+    const getPeriodeDescription = () => {
+      switch(periode) {
+        case 'hari_ini': return 'Hari Ini';
+        case 'minggu_ini': return 'Minggu Ini';
+        case 'bulan_ini': return 'Bulan Ini';
+        case 'custom': return `Custom (${tanggal_mulai} - ${tanggal_akhir})`;
+        default: return 'Semua Data';
+      }
+    };
+
     // Format data for export
     const exportData = data.map((item, index) => ({
-      No: index + 1,
-      Tanggal: new Date(item.waktu_aktivitas).toLocaleDateString('id-ID'),
-      Waktu: new Date(item.waktu_aktivitas).toLocaleTimeString('id-ID'),
-      Pengguna: item.pengguna ? item.pengguna.nama : 'N/A',
-      'Nama Pengguna': item.pengguna ? item.pengguna.nama_pengguna : 'N/A',
-      Role: item.pengguna ? item.pengguna.peran : 'N/A',
-      'Jenis Aktivitas': item.jenis_aktivitas,
-      Modul: item.modul,
-      'Nama Objek': item.nama_objek || 'N/A',
-      Deskripsi: item.deskripsi,
-      'IP Address': item.ip_address || 'N/A',
-      'User Agent': item.user_agent || 'N/A'
+      'No.': index + 1,
+      'Tanggal': formatTanggal(item.waktu_aktivitas),
+      'Waktu': formatWaktu(item.waktu_aktivitas),
+      'Nama Lengkap': item.pengguna ? item.pengguna.nama : 'Tidak Diketahui',
+      'Username': item.pengguna ? item.pengguna.nama_pengguna : 'Tidak Diketahui',
+      'Role/Peran': item.pengguna ? item.pengguna.peran.toUpperCase() : 'Tidak Diketahui',
+      'Jenis Aktivitas': item.jenis_aktivitas.toUpperCase(),
+      'Modul Sistem': item.modul.charAt(0).toUpperCase() + item.modul.slice(1),
+      'Nama Objek': item.nama_objek || 'Tidak Ada',
+      'Deskripsi Aktivitas': item.deskripsi,
+      'Alamat IP': item.ip_address || 'Tidak Tercatat',
+      'User Agent': item.user_agent ? item.user_agent.substring(0, 100) + (item.user_agent.length > 100 ? '...' : '') : 'Tidak Tercatat'
     }));
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `histori-aktivitas-${periode}-${timestamp}`;
 
     if (format === 'excel') {
-      // Create Excel file
-      const ws = XLSX.utils.json_to_sheet(exportData);
+      // Create Excel file with enhanced formatting
       const wb = XLSX.utils.book_new();
+      
+      // Create metadata section
+      const metadata = [
+        ['LAPORAN HISTORI AKTIVITAS SISTEM'],
+        [''],
+        ['Tanggal Ekspor:', formatDateTime(new Date())],
+        ['Periode Data:', getPeriodeDescription()],
+        ['Total Data:', data.length + ' aktivitas'],
+        ['Diekspor Oleh:', req.pengguna ? req.pengguna.nama : 'Sistem'],
+        [''],
+        [''] // Empty row before data
+      ];
+      
+      // Create worksheet starting with metadata
+      const ws = XLSX.utils.aoa_to_sheet(metadata);
+      
+      // Add data starting from row 9 (after metadata)
+      XLSX.utils.sheet_add_json(ws, exportData, { origin: 'A9', skipHeader: false });
+      
+      // Set column widths for better readability
+      const colWidths = [
+        { wch: 5 },   // No.
+        { wch: 12 },  // Tanggal
+        { wch: 10 },  // Waktu
+        { wch: 25 },  // Nama Lengkap
+        { wch: 20 },  // Username
+        { wch: 12 },  // Role/Peran
+        { wch: 18 },  // Jenis Aktivitas
+        { wch: 15 },  // Modul Sistem
+        { wch: 20 },  // Nama Objek
+        { wch: 40 },  // Deskripsi Aktivitas
+        { wch: 15 },  // Alamat IP
+        { wch: 30 }   // User Agent
+      ];
+      ws['!cols'] = colWidths;
+      
+      // Style the title (A1)
+      if (!ws['A1']) ws['A1'] = {};
+      ws['A1'].s = {
+        font: { bold: true, sz: 16, color: { rgb: "1F4E79" } },
+        alignment: { horizontal: 'center' },
+        fill: { fgColor: { rgb: "E7F3FF" } }
+      };
+      
+      // Style metadata labels (column A, rows 3-6)
+      ['A3', 'A4', 'A5', 'A6'].forEach(cell => {
+        if (!ws[cell]) ws[cell] = {};
+        ws[cell].s = {
+          font: { bold: true, color: { rgb: "2F5597" } }
+        };
+      });
+      
+      // Style header row (row 9)
+      const headerRow = 9;
+      const headerCells = ['A9', 'B9', 'C9', 'D9', 'E9', 'F9', 'G9', 'H9', 'I9', 'J9', 'K9', 'L9'];
+      headerCells.forEach(cell => {
+        if (!ws[cell]) ws[cell] = {};
+        ws[cell].s = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "2F5597" } },
+          alignment: { horizontal: 'center' },
+          border: {
+            top: { style: 'thin', color: { rgb: "000000" } },
+            bottom: { style: 'thin', color: { rgb: "000000" } },
+            left: { style: 'thin', color: { rgb: "000000" } },
+            right: { style: 'thin', color: { rgb: "000000" } }
+          }
+        };
+      });
+      
+      // Add borders to data cells
+      const dataStartRow = 10;
+      const dataEndRow = dataStartRow + exportData.length - 1;
+      for (let row = dataStartRow; row <= dataEndRow; row++) {
+        for (let col = 0; col < 12; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: row - 1, c: col });
+          if (!ws[cellRef]) ws[cellRef] = {};
+          ws[cellRef].s = {
+            border: {
+              top: { style: 'thin', color: { rgb: "CCCCCC" } },
+              bottom: { style: 'thin', color: { rgb: "CCCCCC" } },
+              left: { style: 'thin', color: { rgb: "CCCCCC" } },
+              right: { style: 'thin', color: { rgb: "CCCCCC" } }
+            },
+            alignment: { vertical: 'top', wrapText: true }
+          };
+        }
+      }
+      
+      // Merge title cell across all columns
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+      
       XLSX.utils.book_append_sheet(wb, ws, 'Histori Aktivitas');
       
       const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
@@ -367,40 +497,67 @@ const eksporHistoriAktivitas = async (req, res) => {
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
       res.send(excelBuffer);
     } else if (format === 'csv') {
-      // Create CSV file
-      const csvWriter = createCsvWriter({
-        path: path.join(__dirname, '../../temp', `${filename}.csv`),
-        header: [
-          { id: 'No', title: 'No' },
-          { id: 'Tanggal', title: 'Tanggal' },
-          { id: 'Waktu', title: 'Waktu' },
-          { id: 'Pengguna', title: 'Pengguna' },
-          { id: 'Nama Pengguna', title: 'Nama Pengguna' },
-          { id: 'Role', title: 'Role' },
-          { id: 'Jenis Aktivitas', title: 'Jenis Aktivitas' },
-          { id: 'Modul', title: 'Modul' },
-          { id: 'Nama Objek', title: 'Nama Objek' },
-          { id: 'Deskripsi', title: 'Deskripsi' },
-          { id: 'IP Address', title: 'IP Address' },
-          { id: 'User Agent', title: 'User Agent' }
-        ]
-      });
-
-      await csvWriter.writeRecords(exportData);
+      // Create CSV file with proper formatting
+      const csvHeader = [
+        'LAPORAN HISTORI AKTIVITAS SISTEM',
+        '',
+        `Tanggal Ekspor: ${formatDateTime(new Date())}`,
+        `Periode Data: ${getPeriodeDescription()}`,
+        `Total Data: ${data.length} aktivitas`,
+        `Diekspor Oleh: ${req.pengguna ? req.pengguna.nama : 'Sistem'}`,
+        '',
+        ''
+      ];
       
-      const csvPath = path.join(__dirname, '../../temp', `${filename}.csv`);
-      res.setHeader('Content-Type', 'text/csv');
+      // Convert export data to CSV format with proper headers
+      const csvData = exportData.map(row => {
+        return {
+          'No.': row['No.'],
+          'Tanggal': row['Tanggal'],
+          'Waktu': row['Waktu'],
+          'Nama Lengkap': row['Nama Lengkap'],
+          'Username': row['Username'],
+          'Role/Peran': row['Role/Peran'],
+          'Jenis Aktivitas': row['Jenis Aktivitas'],
+          'Modul Sistem': row['Modul Sistem'],
+          'Nama Objek': row['Nama Objek'],
+          'Deskripsi Aktivitas': row['Deskripsi Aktivitas'],
+          'Alamat IP': row['Alamat IP'],
+          'User Agent': row['User Agent']
+        };
+      });
+      
+      // Use json2csv for better CSV formatting
+      const parser = new Parser({
+        fields: [
+          { label: 'No.', value: 'No.' },
+          { label: 'Tanggal', value: 'Tanggal' },
+          { label: 'Waktu', value: 'Waktu' },
+          { label: 'Nama Lengkap', value: 'Nama Lengkap' },
+          { label: 'Username', value: 'Username' },
+          { label: 'Role/Peran', value: 'Role/Peran' },
+          { label: 'Jenis Aktivitas', value: 'Jenis Aktivitas' },
+          { label: 'Modul Sistem', value: 'Modul Sistem' },
+          { label: 'Nama Objek', value: 'Nama Objek' },
+          { label: 'Deskripsi Aktivitas', value: 'Deskripsi Aktivitas' },
+          { label: 'Alamat IP', value: 'Alamat IP' },
+          { label: 'User Agent', value: 'User Agent' }
+        ],
+        delimiter: ',',
+        quote: '"',
+        escape: '"'
+      });
+      
+      const csvContent = parser.parse(csvData);
+      
+      // Combine header and data
+      const finalCsv = csvHeader.join('\n') + '\n' + csvContent;
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
       
-      const csvStream = fs.createReadStream(csvPath);
-      csvStream.pipe(res);
-      
-      // Clean up temp file after sending
-      csvStream.on('end', () => {
-        fs.unlink(csvPath, (err) => {
-          if (err) console.error('Error deleting temp CSV file:', err);
-        });
-      });
+      // Add BOM for proper UTF-8 encoding in Excel
+      res.send('\uFEFF' + finalCsv);
     } else {
       return res.status(400).json({
         success: false,
@@ -573,60 +730,232 @@ const exportArchivedHistoriAktivitas = async (req, res) => {
       });
     }
     
-    // Format data for export
+    // Helper functions for consistent formatting (same as regular export)
+    const formatTanggalArsip = (date) => {
+      return new Date(date).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric'
+      });
+    };
+
+    const formatWaktuArsip = (date) => {
+      return new Date(date).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    };
+
+    const formatDateTimeArsip = (date) => {
+      return new Date(date).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    };
+
+    // Get period description for metadata
+    const getPeriodeDescriptionArsip = () => {
+      switch(periode) {
+        case 'hari_ini': return 'Hari Ini';
+        case 'minggu_ini': return 'Minggu Ini';
+        case 'bulan_ini': return 'Bulan Ini';
+        case 'custom': return `Custom (${tanggal_mulai} - ${tanggal_akhir})`;
+        default: return 'Semua Data';
+      }
+    };
+
+    // Format data for export with enhanced structure
     const exportData = archivedData.map((item, index) => ({
-      'No': index + 1,
-      'Nama Pengguna': item.pengguna?.nama || 'N/A',
-      'Username': item.pengguna?.nama_pengguna || 'N/A',
-      'Role': item.pengguna?.peran || 'N/A',
-      'Jenis Aktivitas': item.jenis_aktivitas,
-      'Modul': item.modul,
-      'Deskripsi': item.deskripsi,
-      'IP Address': item.ip_address,
-      'User Agent': item.user_agent,
-      'Waktu Aktivitas': new Date(item.waktu_aktivitas).toLocaleString('id-ID'),
-      'Tanggal Diarsipkan': new Date(item.archived_at).toLocaleString('id-ID')
+      'No.': index + 1,
+      'Tanggal Aktivitas': formatTanggalArsip(item.waktu_aktivitas),
+      'Waktu Aktivitas': formatWaktuArsip(item.waktu_aktivitas),
+      'Nama Lengkap': item.pengguna?.nama || 'Tidak Diketahui',
+      'Username': item.pengguna?.nama_pengguna || 'Tidak Diketahui',
+      'Role/Peran': item.pengguna?.peran ? item.pengguna.peran.toUpperCase() : 'Tidak Diketahui',
+      'Jenis Aktivitas': item.jenis_aktivitas.toUpperCase(),
+      'Modul Sistem': item.modul.charAt(0).toUpperCase() + item.modul.slice(1),
+      'Deskripsi Aktivitas': item.deskripsi,
+      'Alamat IP': item.ip_address || 'Tidak Tercatat',
+      'User Agent': item.user_agent ? item.user_agent.substring(0, 100) + (item.user_agent.length > 100 ? '...' : '') : 'Tidak Tercatat',
+      'Tanggal Diarsipkan': formatTanggalArsip(item.archived_at),
+      'Waktu Diarsipkan': formatWaktuArsip(item.archived_at)
     }));
     
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `histori-aktivitas-arsip-${periode}-${timestamp}`;
     
     if (format === 'xlsx' || format === 'excel') {
-      // Create Excel file
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Histori Aktivitas Arsip');
+      // Create Excel file with enhanced formatting
+      const wb = XLSX.utils.book_new();
       
-      // Set column widths
-      const colWidths = [
-        { wch: 5 },   // No
-        { wch: 20 },  // Nama Pengguna
-        { wch: 25 },  // Email
-        { wch: 15 },  // Role
-        { wch: 20 },  // Jenis Aktivitas
-        { wch: 15 },  // Modul
-        { wch: 40 },  // Deskripsi
-        { wch: 15 },  // IP Address
-        { wch: 30 },  // User Agent
-        { wch: 20 },  // Waktu Aktivitas
-        { wch: 20 }   // Tanggal Diarsipkan
+      // Create metadata section
+      const metadata = [
+        ['LAPORAN HISTORI AKTIVITAS ARSIP SISTEM'],
+        [''],
+        ['Tanggal Ekspor:', formatDateTimeArsip(new Date())],
+        ['Periode Data:', getPeriodeDescriptionArsip()],
+        ['Total Data:', archivedData.length + ' aktivitas arsip'],
+        ['Diekspor Oleh:', req.pengguna ? req.pengguna.nama : 'Sistem'],
+        [''],
+        [''] // Empty row before data
       ];
-      worksheet['!cols'] = colWidths;
       
-      const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+      // Create worksheet starting with metadata
+      const ws = XLSX.utils.aoa_to_sheet(metadata);
+      
+      // Add data starting from row 9 (after metadata)
+      XLSX.utils.sheet_add_json(ws, exportData, { origin: 'A9', skipHeader: false });
+      
+      // Set column widths for better readability
+      const colWidths = [
+        { wch: 5 },   // No.
+        { wch: 12 },  // Tanggal Aktivitas
+        { wch: 10 },  // Waktu Aktivitas
+        { wch: 25 },  // Nama Lengkap
+        { wch: 20 },  // Username
+        { wch: 12 },  // Role/Peran
+        { wch: 18 },  // Jenis Aktivitas
+        { wch: 15 },  // Modul Sistem
+        { wch: 40 },  // Deskripsi Aktivitas
+        { wch: 15 },  // Alamat IP
+        { wch: 30 },  // User Agent
+        { wch: 12 },  // Tanggal Diarsipkan
+        { wch: 10 }   // Waktu Diarsipkan
+      ];
+      ws['!cols'] = colWidths;
+      
+      // Style the title (A1)
+      if (!ws['A1']) ws['A1'] = {};
+      ws['A1'].s = {
+        font: { bold: true, sz: 16, color: { rgb: "1F4E79" } },
+        alignment: { horizontal: 'center' },
+        fill: { fgColor: { rgb: "E7F3FF" } }
+      };
+      
+      // Style metadata labels (column A, rows 3-6)
+      ['A3', 'A4', 'A5', 'A6'].forEach(cell => {
+        if (!ws[cell]) ws[cell] = {};
+        ws[cell].s = {
+          font: { bold: true, color: { rgb: "2F5597" } }
+        };
+      });
+      
+      // Style header row (row 9)
+      const headerCells = ['A9', 'B9', 'C9', 'D9', 'E9', 'F9', 'G9', 'H9', 'I9', 'J9', 'K9', 'L9', 'M9'];
+      headerCells.forEach(cell => {
+        if (!ws[cell]) ws[cell] = {};
+        ws[cell].s = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "2F5597" } },
+          alignment: { horizontal: 'center' },
+          border: {
+            top: { style: 'thin', color: { rgb: "000000" } },
+            bottom: { style: 'thin', color: { rgb: "000000" } },
+            left: { style: 'thin', color: { rgb: "000000" } },
+            right: { style: 'thin', color: { rgb: "000000" } }
+          }
+        };
+      });
+      
+      // Add borders to data cells
+      const dataStartRow = 10;
+      const dataEndRow = dataStartRow + exportData.length - 1;
+      for (let row = dataStartRow; row <= dataEndRow; row++) {
+        for (let col = 0; col < 13; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: row - 1, c: col });
+          if (!ws[cellRef]) ws[cellRef] = {};
+          ws[cellRef].s = {
+            border: {
+              top: { style: 'thin', color: { rgb: "CCCCCC" } },
+              bottom: { style: 'thin', color: { rgb: "CCCCCC" } },
+              left: { style: 'thin', color: { rgb: "CCCCCC" } },
+              right: { style: 'thin', color: { rgb: "CCCCCC" } }
+            },
+            alignment: { vertical: 'top', wrapText: true }
+          };
+        }
+      }
+      
+      // Merge title cell across all columns
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }];
+      
+      XLSX.utils.book_append_sheet(wb, ws, 'Histori Aktivitas Arsip');
+      
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
       
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
       res.send(buffer);
       
     } else if (format === 'csv') {
-      // Create CSV file
-      const parser = new Parser();
-      const csv = parser.parse(exportData);
+      // Create CSV file with enhanced formatting and metadata
+      const csvHeader = [
+        'LAPORAN HISTORI AKTIVITAS ARSIP SISTEM',
+        '',
+        `Tanggal Ekspor: ${formatDateTimeArsip(new Date())}`,
+        `Periode Data: ${getPeriodeDescriptionArsip()}`,
+        `Total Data: ${archivedData.length} aktivitas arsip`,
+        `Diekspor Oleh: ${req.pengguna ? req.pengguna.nama : 'Sistem'}`,
+        '',
+        ''
+      ];
+      
+      // Convert export data to CSV format with proper headers
+      const csvData = exportData.map(row => {
+        return {
+          'No.': row['No.'],
+          'Tanggal Aktivitas': row['Tanggal Aktivitas'],
+          'Waktu Aktivitas': row['Waktu Aktivitas'],
+          'Nama Lengkap': row['Nama Lengkap'],
+          'Username': row['Username'],
+          'Role/Peran': row['Role/Peran'],
+          'Jenis Aktivitas': row['Jenis Aktivitas'],
+          'Modul Sistem': row['Modul Sistem'],
+          'Deskripsi Aktivitas': row['Deskripsi Aktivitas'],
+          'Alamat IP': row['Alamat IP'],
+          'User Agent': row['User Agent'],
+          'Tanggal Diarsipkan': row['Tanggal Diarsipkan'],
+          'Waktu Diarsipkan': row['Waktu Diarsipkan']
+        };
+      });
+      
+      // Use json2csv for better CSV formatting
+      const parser = new Parser({
+        fields: [
+          { label: 'No.', value: 'No.' },
+          { label: 'Tanggal Aktivitas', value: 'Tanggal Aktivitas' },
+          { label: 'Waktu Aktivitas', value: 'Waktu Aktivitas' },
+          { label: 'Nama Lengkap', value: 'Nama Lengkap' },
+          { label: 'Username', value: 'Username' },
+          { label: 'Role/Peran', value: 'Role/Peran' },
+          { label: 'Jenis Aktivitas', value: 'Jenis Aktivitas' },
+          { label: 'Modul Sistem', value: 'Modul Sistem' },
+          { label: 'Deskripsi Aktivitas', value: 'Deskripsi Aktivitas' },
+          { label: 'Alamat IP', value: 'Alamat IP' },
+          { label: 'User Agent', value: 'User Agent' },
+          { label: 'Tanggal Diarsipkan', value: 'Tanggal Diarsipkan' },
+          { label: 'Waktu Diarsipkan', value: 'Waktu Diarsipkan' }
+        ],
+        delimiter: ',',
+        quote: '"',
+        escape: '"'
+      });
+      
+      const csvContent = parser.parse(csvData);
+      
+      // Combine header and data
+      const finalCsv = csvHeader.join('\n') + '\n' + csvContent;
       
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
-      res.send('\uFEFF' + csv); // Add BOM for proper UTF-8 encoding
+      
+      // Add BOM for proper UTF-8 encoding in Excel
+      res.send('\uFEFF' + finalCsv);
       
     } else {
       return res.status(400).json({
