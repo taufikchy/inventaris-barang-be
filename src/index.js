@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const sequelize = require('./config/basisdata');
+const ArchiveScheduler = require('./schedulers/archiveScheduler');
 
 // Import rute-rute
 const ruteAuth = require('./routes/auth.routes');
@@ -38,7 +39,11 @@ console.log('Serving static files from:', require('path').resolve('public'));
 
 // Koneksi database
 sequelize.authenticate()
-  .then(() => console.log('Database MySQL berhasil terhubung'))
+  .then(() => {
+    console.log('Database MySQL berhasil terhubung');
+    // Inisialisasi scheduler archive setelah database terhubung
+    ArchiveScheduler.init();
+  })
   .catch(err => console.error('Kesalahan koneksi database MySQL:', err));
 
 // Sinkronisasi model dengan database
