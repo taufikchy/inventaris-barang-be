@@ -16,6 +16,7 @@ const validateSumberDana = [
 
 // Routes untuk sumber dana
 router.get('/', verifikasiToken, sumberDanaController.dapatkanSemuaSumberDana);
+router.get('/dropdown', verifikasiToken, sumberDanaController.dapatkanSemuaSumberDanaDropdown);
 router.get('/:id', verifikasiToken, sumberDanaController.dapatkanSumberDanaById);
 router.post('/', verifikasiToken, validateSumberDana, sumberDanaController.buatSumberDana);
 router.put('/:id', verifikasiToken, validateSumberDana, sumberDanaController.updateSumberDana);

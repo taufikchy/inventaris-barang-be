@@ -21,6 +21,27 @@ exports.dapatkanSemuaSumberDana = async (req, res) => {
   }
 };
 
+// Mendapatkan dropdown sumber dana
+exports.dapatkanSemuaSumberDanaDropdown = async (req, res) => {
+  try {
+    const sumberDana = await SumberDana.findAll({
+      attributes: ['id', 'nama'],
+      order: [['nama', 'ASC']]
+    });
+
+    res.json({
+      sukses: true,
+      data: sumberDana
+    });
+  } catch (error) {
+    console.error('Kesalahan mendapatkan dropdown sumber dana:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan saat mengambil data dropdown sumber dana'
+    });
+  }
+};
+
 // Mendapatkan sumber dana berdasarkan ID
 exports.dapatkanSumberDanaById = async (req, res) => {
   try {
