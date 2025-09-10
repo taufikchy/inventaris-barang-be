@@ -11,6 +11,7 @@ const rutePengguna = require('./routes/pengguna.routes');
 const ruteBarang = require('./routes/barang.routes');
 const ruteKategori = require('./routes/kategori.routes');
 const ruteLokasi = require('./routes/lokasi.routes');
+const ruteSumberDana = require('./routes/sumberDana.routes');
 const rutePeminjaman = require('./routes/peminjaman.routes');
 const ruteTransaksi = require('./routes/transaksi.routes');
 const ruteHistoriAktivitas = require('./routes/historiAktivitas.routes');
@@ -59,6 +60,7 @@ app.use('/api/pengguna', rutePengguna);
 app.use('/api/barang', ruteBarang);
 app.use('/api/kategori', ruteKategori);
 app.use('/api/lokasi', ruteLokasi);
+app.use('/api/sumber-dana', ruteSumberDana);
 app.use('/api/peminjaman', rutePeminjaman);
 app.use('/api/transaksi', ruteTransaksi);
 app.use('/api/histori-aktivitas', ruteHistoriAktivitas);
@@ -83,4 +85,4 @@ app.use((err, req, res, next) => {
 // Mulai server
 app.listen(PORT, () => {
   console.log(`Server berjalan pada port ${PORT}`);
-}); // Updated for status fix
+}); // Updated for status fix - restart trigger 2

@@ -1,4 +1,4 @@
-const { Barang, Kategori, Lokasi, Peminjaman, DetailPeminjaman } = require('../models');
+const { Barang, Kategori, Lokasi, SumberDana, Peminjaman, DetailPeminjaman } = require('../models');
 const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
@@ -51,7 +51,8 @@ exports.dapatkanSemuaBarang = async (req, res) => {
       where: kondisiPencarian,
       include: [
         { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
-        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
+        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] },
+        { model: SumberDana, as: 'sumber_dana', attributes: ['id', 'nama'], required: false }
       ],
       order: [['kode', 'ASC']]
     });
@@ -99,6 +100,8 @@ exports.dapatkanSemuaBarang = async (req, res) => {
           kategori: itemData.kategori,
           id_lokasi: itemData.id_lokasi,
           lokasi: itemData.lokasi,
+          id_sumber_dana: itemData.id_sumber_dana,
+          sumber_dana: itemData.SumberDana,
           status: itemData.status,
           units: []
         };
@@ -256,7 +259,8 @@ exports.dapatkanBarangById = async (req, res) => {
     const barang = await Barang.findByPk(id, {
       include: [
         { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
-        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
+        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] },
+        { model: SumberDana, as: 'sumber_dana', attributes: ['id', 'nama'], required: false }
       ]
     });
     
@@ -348,7 +352,7 @@ exports.dapatkanBarangById = async (req, res) => {
 // Membuat barang baru
 exports.buatBarang = async (req, res) => {
   try {
-    const { nama, deskripsi, jumlah, satuan, unit_per_set, kondisi, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi } = req.body;
+    const { nama, deskripsi, jumlah, satuan, unit_per_set, kondisi, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi, id_sumber_dana } = req.body;
     
     // Validasi input
     if (!nama || !id_kategori || !id_lokasi) {
@@ -440,7 +444,8 @@ exports.buatBarang = async (req, res) => {
         tahun_pengadaan,
         gambar: gambarPath,
         id_kategori,
-        id_lokasi
+        id_lokasi,
+        id_sumber_dana: id_sumber_dana || null
       });
       
       barangBaruArray.push(barangBaru);
@@ -468,7 +473,8 @@ exports.buatBarang = async (req, res) => {
           tahun_pengadaan,
           gambar: gambarPath,
           id_kategori,
-          id_lokasi
+          id_lokasi,
+          id_sumber_dana: id_sumber_dana || null
         });
         
         barangBaruArray.push(barangBaru);
@@ -479,7 +485,8 @@ exports.buatBarang = async (req, res) => {
     const barangDenganRelasi = await Barang.findByPk(barangBaruArray[0].id, {
       include: [
         { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
-        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
+        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] },
+        { model: SumberDana, as: 'sumber_dana', attributes: ['id', 'nama'] }
       ]
     });
     
@@ -528,7 +535,7 @@ exports.buatBarang = async (req, res) => {
 exports.updateBarang = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nama, kode, deskripsi, jumlah, kondisi, status, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi, satuan, unit_per_set } = req.body;
+    const { nama, kode, deskripsi, jumlah, kondisi, status, tanggal_perolehan, tahun_pengadaan, id_kategori, id_lokasi, satuan, unit_per_set, id_sumber_dana } = req.body;
     
     // Cek apakah barang ada
     const barang = await Barang.findByPk(id);
@@ -616,14 +623,16 @@ exports.updateBarang = async (req, res) => {
       tahun_pengadaan: tahun_pengadaan !== undefined ? tahun_pengadaan : barang.tahun_pengadaan,
       gambar: gambarPath,
       id_kategori: id_kategori || barang.id_kategori,
-      id_lokasi: id_lokasi || barang.id_lokasi
+      id_lokasi: id_lokasi || barang.id_lokasi,
+      id_sumber_dana: id_sumber_dana !== undefined ? id_sumber_dana : barang.id_sumber_dana
     });
     
     // Dapatkan data barang yang sudah diupdate dengan relasi
     const barangUpdated = await Barang.findByPk(id, {
       include: [
         { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
-        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
+        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] },
+        { model: SumberDana, as: 'sumber_dana', attributes: ['id', 'nama'] }
       ]
     });
     

@@ -2,6 +2,7 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/basisdata');
 const Kategori = require('./Kategori');
 const Lokasi = require('./Lokasi');
+const SumberDana = require('./SumberDana');
 
 // Model untuk tabel barang
 const Barang = sequelize.define('Barang', {
@@ -78,6 +79,15 @@ const Barang = sequelize.define('Barang', {
   status: {
     type: DataTypes.ENUM('tersedia', 'dipinjam', 'perbaikan', 'dihapuskan'),
     defaultValue: 'tersedia'
+  },
+  id_sumber_dana: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: SumberDana,
+      key: 'id'
+    },
+    comment: 'ID sumber dana barang'
   }
 }, {
   tableName: 'barang',
