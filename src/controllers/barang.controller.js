@@ -739,3 +739,105 @@ exports.hapusBarang = async (req, res) => {
     });
   }
 };
+
+// Upload gambar untuk unit individual
+exports.uploadGambarUnit = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Cek apakah barang ada
+    const barang = await Barang.findByPk(id);
+    if (!barang) {
+      return res.status(404).json({
+        sukses: false,
+        pesan: 'Barang tidak ditemukan.'
+      });
+    }
+
+    // Cek apakah ada file yang diupload
+    if (!req.file) {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'File gambar wajib diupload.'
+      });
+    }
+
+    console.log('Controller - Received file:', {
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      path: req.file.path,
+      destination: req.file.destination
+    });
+
+    // Cek apakah file benar-benar ada di disk
+    console.log('Controller - File exists check:', fs.existsSync(req.file.path));
+    if (fs.existsSync(req.file.path)) {
+      console.log('Controller - File found at:', req.file.path);
+    } else {
+      console.log('Controller - File NOT found at:', req.file.path);
+    }
+
+    // Hapus gambar lama jika ada dan berbeda dari file yang baru diupload
+    if (barang.gambar) {
+      const oldImagePath = path.join(__dirname, '../../public', barang.gambar);
+      const newImagePath = req.file.path;
+      
+      console.log('Controller - Old image path:', oldImagePath);
+      console.log('Controller - New image path:', newImagePath);
+      
+      // Hanya hapus jika path berbeda (bukan file yang sama yang baru diupload)
+      if (oldImagePath !== newImagePath && fs.existsSync(oldImagePath)) {
+        console.log('Controller - Deleting old image:', oldImagePath);
+        fs.unlinkSync(oldImagePath);
+      } else if (oldImagePath === newImagePath) {
+        console.log('Controller - Skipping deletion - same file as new upload');
+      }
+    }
+
+    // JANGAN hapus file unit karena itu adalah file yang baru saja dibuat oleh multer
+    // Komentar kode penghapusan file unit
+    /*
+    const unitImagePath = path.join(__dirname, '../../public/uploads/barang', `unit-${barang.kode}.jpg`);
+    const unitImagePathPng = path.join(__dirname, '../../public/uploads/barang', `unit-${barang.kode}.png`);
+    const unitImagePathJpeg = path.join(__dirname, '../../public/uploads/barang', `unit-${barang.kode}.jpeg`);
+    const unitImagePathGif = path.join(__dirname, '../../public/uploads/barang', `unit-${barang.kode}.gif`);
+    
+    [unitImagePath, unitImagePathPng, unitImagePathJpeg, unitImagePathGif].forEach(filePath => {
+      if (fs.existsSync(filePath)) {
+        console.log('Controller - Deleting unit file:', filePath);
+        fs.unlinkSync(filePath);
+      }
+    });
+    */
+
+    // Update path gambar di database dengan nama file baru
+    const imagePath = `/uploads/barang/${req.file.filename}`;
+    await barang.update({ gambar: imagePath });
+
+    res.status(200).json({
+      sukses: true,
+      pesan: 'Gambar unit berhasil diupload.',
+      data: {
+        id: barang.id,
+        gambar: imagePath
+      }
+    });
+
+  } catch (error) {
+    console.error('Kesalahan upload gambar unit:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan pada server.'
+    });
+  }
+};
+
+module.exports = {
+  dapatkanSemuaBarang: exports.dapatkanSemuaBarang,
+  dapatkanSemuaBarangDropdown: exports.dapatkanSemuaBarangDropdown,
+  dapatkanBarangById: exports.dapatkanBarangById,
+  buatBarang: exports.buatBarang,
+  updateBarang: exports.updateBarang,
+  hapusBarang: exports.hapusBarang,
+  uploadGambarUnit: exports.uploadGambarUnit
+};
