@@ -60,7 +60,7 @@ router.get('/:id', semuaPengguna, barangController.dapatkanBarangById);
 router.post('/', adminToolmanAtauKepalaLab, upload.single('gambar'), logActivity('create', 'barang'), barangController.buatBarang);
 
 // Rute untuk mengupdate barang (Admin, Toolman, dan Kepala Lab)
-router.put('/:id', adminToolmanAtauKepalaLab, saveOriginalData(Barang), logActivity('update', 'barang'), upload.single('gambar'), barangController.updateBarang);
+router.put('/:id', adminToolmanAtauKepalaLab, upload.single('gambar'), saveOriginalData(Barang), logActivity('update', 'barang'), barangController.updateBarang);
 
 // Rute untuk menghapus barang (hanya Kepala Lab)
 router.delete('/:id', hanyaKepalaLab, saveOriginalData(Barang), logActivity('delete', 'barang'), barangController.hapusBarang);
