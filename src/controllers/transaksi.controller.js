@@ -299,74 +299,38 @@ const createTransaksi = async (req, res) => {
     // Update transaction record with stock after transaction
     await transaksi.update({ stok_sesudah: stokSesudah }, { transaction });
 
-    // Auto-delete logic for 'bahan' category items with 0 stock
+    // Removed auto-delete logic for 'bahan' category items with 0 stock
+    // Items will remain in the system even when stock reaches 0
     let isItemDeleted = false;
-    if (barang.kategori && barang.kategori.tipe === 'bahan') {
-      // Check if stock is 0 after transaction
-      let finalStock = newStock;
-      if (barang.satuan === 'set' && barang.unit_per_set && barang.unit_per_set > 0) {
-        // For set items, check if no units are available
-        const totalUnits = newStock * barang.unit_per_set;
-        const availableUnits = totalUnits - newUnitUsed;
-        finalStock = availableUnits;
-      }
-      
-      if (finalStock <= 0) {
-        // Instead of deleting, mark item as 'dihapuskan' to avoid foreign key constraint issues
-        await barang.update({ status: 'dihapuskan' }, { transaction });
-        isItemDeleted = true;
-        console.log(`Auto-marked item as deleted ${barang.nama} (ID: ${barang.id}) - stock reached 0`);
-      }
-    }
 
     await transaction.commit();
 
-    // Get the created transaction with relations (only if item wasn't deleted)
-    let createdTransaksi = null;
-    if (!isItemDeleted) {
-      createdTransaksi = await Transaksi.findByPk(transaksi.id, {
-        include: [
-          {
-            model: Barang,
-            as: 'barang',
-            include: [
-              {
-                model: Kategori,
-                as: 'kategori',
-                attributes: ['id', 'nama']
-              }
-            ]
-          },
-          {
-            model: Pengguna,
-            as: 'pengguna',
-            attributes: ['id', 'nama', 'nama_pengguna']
-          }
-        ]
-      });
-    } else {
-      // If item was deleted, get transaction without barang relation
-      createdTransaksi = await Transaksi.findByPk(transaksi.id, {
-        include: [
-          {
-            model: Pengguna,
-            as: 'pengguna',
-            attributes: ['id', 'nama', 'nama_pengguna']
-          }
-        ]
-      });
-    }
-
-    const responseMessage = isItemDeleted 
-      ? `Transaksi berhasil dibuat. Barang "${barang.nama}" telah dihapus otomatis karena stok mencapai 0.`
-      : 'Transaksi berhasil dibuat';
+    // Get the created transaction with relations
+    const createdTransaksi = await Transaksi.findByPk(transaksi.id, {
+      include: [
+        {
+          model: Barang,
+          as: 'barang',
+          include: [
+            {
+              model: Kategori,
+              as: 'kategori',
+              attributes: ['id', 'nama']
+            }
+          ]
+        },
+        {
+          model: Pengguna,
+          as: 'pengguna',
+          attributes: ['id', 'nama', 'nama_pengguna']
+        }
+      ]
+    });
 
     res.status(201).json({
       success: true,
-      message: responseMessage,
-      data: createdTransaksi,
-      itemDeleted: isItemDeleted,
-      deletedItemName: isItemDeleted ? barang.nama : null
+      message: 'Transaksi berhasil dibuat',
+      data: createdTransaksi
     });
   } catch (error) {
     if (!transaction.finished) {
