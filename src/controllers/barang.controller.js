@@ -73,7 +73,8 @@ exports.dapatkanSemuaBarang = async (req, res) => {
         'tersedia': 'Tersedia',
         'dipinjam': 'Dipinjam',
         'perbaikan': 'Perbaikan',
-        'dihapuskan': 'Dihapuskan'
+        'dihapuskan': 'Dihapuskan',
+        'habis': 'Habis'
       };
       
       itemData.kondisi = kondisiFrontendMapping[itemData.kondisi] || itemData.kondisi;
@@ -145,6 +146,20 @@ exports.dapatkanSemuaBarang = async (req, res) => {
           // Untuk satuan non-set, stok sama dengan jumlah
           item.stok = item.jumlah;
         }
+        
+        // Ubah status menjadi 'Habis' jika stok 0 untuk kategori bahan
+        if (item.stok <= 0 && item.status !== 'Dihapuskan') {
+          item.status = 'Habis';
+        }
+        
+        // Update status untuk semua unit dalam grup
+        item.units.forEach(unit => {
+          if (item.kategori && item.kategori.tipe === 'bahan') {
+            if (unit.jumlah <= 0 && unit.status !== 'Dihapuskan') {
+              unit.status = 'Habis';
+            }
+          }
+        });
       }
     });
     
@@ -217,7 +232,8 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
       'tersedia': 'Tersedia',
       'dipinjam': 'Dipinjam',
       'perbaikan': 'Perbaikan',
-      'dihapuskan': 'Dihapuskan'
+      'dihapuskan': 'Dihapuskan',
+      'habis': 'Habis'
     };
     
     const barangData = barang.map(item => {
@@ -229,6 +245,10 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
       // Untuk kategori bahan, stok tersisa sama dengan jumlah saat ini
       if (itemData.kategori && itemData.kategori.tipe === 'bahan') {
         itemData.stok = itemData.jumlah;
+        // Ubah status menjadi 'Habis' jika stok 0 untuk kategori bahan
+        if (itemData.stok <= 0 && itemData.status !== 'Dihapuskan') {
+          itemData.status = 'Habis';
+        }
       }
       // Ensure unit_used is included for set items
       if (!itemData.unit_used) {
@@ -282,7 +302,8 @@ exports.dapatkanBarangById = async (req, res) => {
       'tersedia': 'Tersedia',
       'dipinjam': 'Dipinjam',
       'perbaikan': 'Perbaikan',
-      'dihapuskan': 'Dihapuskan'
+      'dihapuskan': 'Dihapuskan',
+      'habis': 'Habis'
     };
     
     const barangData = barang.toJSON();
@@ -295,6 +316,10 @@ exports.dapatkanBarangById = async (req, res) => {
     // (jumlah sudah dikurangi saat transaksi keluar dibuat)
     if (barangData.kategori && barangData.kategori.tipe === 'bahan') {
       barangData.stok = barangData.jumlah;
+      // Ubah status menjadi 'Habis' jika stok 0 untuk kategori bahan
+      if (barangData.stok <= 0 && barangData.status !== 'Dihapuskan') {
+        barangData.status = 'Habis';
+      }
     }
     
     // Dapatkan prefix kode (3 huruf pertama sebelum tanda -)
@@ -326,6 +351,10 @@ exports.dapatkanBarangById = async (req, res) => {
       // (jumlah sudah dikurangi saat transaksi keluar dibuat)
       if (unitData.kategori && unitData.kategori.tipe === 'bahan') {
         unitData.stok = unitData.jumlah;
+        // Ubah status menjadi 'Habis' jika stok 0 untuk kategori bahan
+        if (unitData.stok <= 0 && unitData.status !== 'Dihapuskan') {
+          unitData.status = 'Habis';
+        }
       }
       return unitData;
     });
@@ -504,6 +533,10 @@ exports.buatBarang = async (req, res) => {
     // Untuk kategori bahan, stok tersisa sama dengan jumlah saat ini
     if (barangData.kategori && barangData.kategori.tipe === 'bahan') {
       barangData.stok = barangData.jumlah;
+      // Ubah status menjadi 'Habis' jika stok 0 untuk kategori bahan
+      if (barangData.stok <= 0 && barangData.status !== 'Dihapuskan') {
+        barangData.status = 'Habis';
+      }
     }
     
     // Buat daftar kode barang yang dibuat
@@ -647,7 +680,8 @@ exports.updateBarang = async (req, res) => {
       'tersedia': 'Tersedia',
       'dipinjam': 'Dipinjam',
       'perbaikan': 'Perbaikan',
-      'dihapuskan': 'Dihapuskan'
+      'dihapuskan': 'Dihapuskan',
+      'habis': 'Habis'
     };
     
     const barangData = barangUpdated.toJSON();

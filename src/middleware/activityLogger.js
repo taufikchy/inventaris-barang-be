@@ -291,7 +291,8 @@ const saveOriginalData = (Model) => {
             'tersedia': 'Tersedia',
             'dipinjam': 'Dipinjam',
             'perbaikan': 'Perbaikan',
-            'dihapuskan': 'Dihapuskan'
+            'dihapuskan': 'Dihapuskan',
+            'habis': 'Habis'
           };
           
           if (originalData.kondisi) {

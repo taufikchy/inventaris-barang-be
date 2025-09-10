@@ -77,7 +77,7 @@ const Barang = sequelize.define('Barang', {
     }
   },
   status: {
-    type: DataTypes.ENUM('tersedia', 'dipinjam', 'perbaikan', 'dihapuskan'),
+    type: DataTypes.ENUM('tersedia', 'dipinjam', 'perbaikan', 'dihapuskan', 'habis'),
     defaultValue: 'tersedia'
   },
   id_sumber_dana: {
