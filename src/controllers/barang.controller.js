@@ -54,7 +54,7 @@ exports.dapatkanSemuaBarang = async (req, res) => {
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] },
         { model: SumberDana, as: 'sumber_dana', attributes: ['id', 'nama'], required: false }
       ],
-      order: [['kode', 'ASC']]
+      order: [['kode', 'ASC'], ['nama', 'ASC']]
     });
     
     // Kelompokkan barang berdasarkan prefix kode (3 huruf pertama)
@@ -203,7 +203,7 @@ exports.dapatkanSemuaBarangDropdown = async (req, res) => {
         { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
         { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
       ],
-      order: [['nama', 'ASC']]
+      order: [['kode', 'ASC'], ['nama', 'ASC']]
     });
     
     // Konversi kondisi dan status ke format frontend
