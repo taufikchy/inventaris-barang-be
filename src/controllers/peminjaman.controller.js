@@ -321,12 +321,12 @@ exports.persetujuanPeminjaman = async (req, res) => {
         }
       }
       
-      // Kurangi stok semua barang dan update status menjadi dipinjam
+      // Kurangi stok semua barang tanpa mengubah status
       for (const detail of peminjaman.detail_peminjaman) {
         const barang = detail.barang;
         await barang.update({ 
-          jumlah: barang.jumlah - detail.jumlah,
-          status: 'dipinjam' // Update status menjadi dipinjam saat disetujui
+          jumlah: barang.jumlah - detail.jumlah
+          // Status tetap 'tersedia' meskipun ada yang dipinjam
         });
       }
       
@@ -432,8 +432,8 @@ exports.kembalikanBarang = async (req, res) => {
     for (const detail of peminjaman.detail_peminjaman) {
       const barang = detail.barang;
       await barang.update({ 
-        jumlah: barang.jumlah + detail.jumlah,
-        status: 'tersedia' // Update status menjadi tersedia setelah dikembalikan
+        jumlah: barang.jumlah + detail.jumlah
+        // Status tidak perlu diubah, tetap sesuai kondisi asli barang
       });
       
       // Update kondisi saat kembali di detail peminjaman
@@ -521,12 +521,12 @@ exports.updatePeminjaman = async (req, res) => {
     
     // Jika mengubah status dari dipinjam ke dikembalikan
     if (status === 'dikembalikan' && peminjaman.status === 'dipinjam') {
-      // Tambah jumlah barang yang tersedia dan update status
+      // Tambah jumlah barang yang tersedia tanpa mengubah status
       for (const detail of peminjaman.detail_peminjaman) {
         const barang = detail.barang;
         await barang.update({ 
-          jumlah: barang.jumlah + detail.jumlah,
-          status: 'tersedia' // Update status menjadi tersedia
+          jumlah: barang.jumlah + detail.jumlah
+          // Status tidak perlu diubah
         });
       }
     }
@@ -542,8 +542,8 @@ exports.updatePeminjaman = async (req, res) => {
           });
         }
         await barang.update({ 
-          jumlah: barang.jumlah - detail.jumlah,
-          status: 'dipinjam' // Update status menjadi dipinjam
+          jumlah: barang.jumlah - detail.jumlah
+          // Status tidak perlu diubah
         });
       }
     }

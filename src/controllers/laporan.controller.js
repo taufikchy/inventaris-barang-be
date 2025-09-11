@@ -1,16 +1,18 @@
-const { Barang, Kategori, Lokasi, Peminjaman, Pengguna, DetailPeminjaman } = require('../models');
+const { Barang, Kategori, Lokasi, Peminjaman, Pengguna, DetailPeminjaman, SumberDana } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 
 // Mendapatkan laporan inventaris
 exports.getLaporanInventaris = async (req, res) => {
   try {
-    const { kategori, lokasi, kondisi, tanggal_mulai, tanggal_akhir } = req.query;
+    const { kategori, lokasi, kondisi, sumber_dana, tanggal_mulai, tanggal_akhir } = req.query;
     
     // Buat kondisi pencarian
-    let kondisi_pencarian = {
-      // Exclude barang yang sudah dihapuskan
-      status: { [Op.ne]: 'dihapuskan' }
-    };
+    let kondisi_pencarian = {};
+    
+    // Default: exclude barang yang sudah dihapuskan (akan di-override jika ada filter status)
+    if (!req.query.status) {
+      kondisi_pencarian.status = { [Op.ne]: 'dihapuskan' };
+    }
     
     // Filter berdasarkan kategori
     if (kategori) {
@@ -24,7 +26,26 @@ exports.getLaporanInventaris = async (req, res) => {
     
     // Filter berdasarkan kondisi barang
     if (kondisi) {
-      kondisi_pencarian.kondisi = kondisi;
+      // Mapping kondisi frontend ke database
+      const kondisiDatabaseMapping = {
+        'Baik': 'baik',
+        'Rusak Ringan': 'rusak_ringan',
+        'Rusak Berat': 'rusak_berat'
+      };
+      kondisi_pencarian.kondisi = kondisiDatabaseMapping[kondisi] || kondisi.toLowerCase().replace(' ', '_');
+    }
+    
+    // Filter berdasarkan status barang
+    // Catatan: Status 'Habis' akan ditangani setelah query karena dihitung berdasarkan jumlah
+    if (req.query.status && req.query.status !== 'Habis') {
+      // Mapping status frontend ke database
+      const statusDatabaseMapping = {
+        'Tersedia': 'tersedia',
+        'Dipinjam': 'dipinjam',
+        'Perbaikan': 'perbaikan',
+        'Dihapuskan': 'dihapuskan'
+      };
+      kondisi_pencarian.status = statusDatabaseMapping[req.query.status] || req.query.status.toLowerCase();
     }
     
     // Filter berdasarkan rentang tanggal perolehan
@@ -42,15 +63,69 @@ exports.getLaporanInventaris = async (req, res) => {
       };
     }
     
+    // Setup include untuk sumber dana dengan filter
+    let sumberDanaInclude = { 
+      model: SumberDana, 
+      as: 'sumber_dana', 
+      attributes: ['id', 'nama'], 
+      required: false 
+    };
+    
+    // Filter berdasarkan sumber dana
+    if (sumber_dana) {
+      sumberDanaInclude.where = {
+        nama: sumber_dana
+      };
+      sumberDanaInclude.required = true;
+    }
+    
     // Dapatkan data inventaris
     const inventaris = await Barang.findAll({
       where: kondisi_pencarian,
       include: [
         { model: Kategori, as: 'kategori' },
-        { model: Lokasi, as: 'lokasi' }
+        { model: Lokasi, as: 'lokasi' },
+        sumberDanaInclude
       ],
-      order: [['updatedAt', 'DESC']]
+      order: [['nama', 'ASC'], ['kode', 'ASC']]
     });
+
+    // Konversi kondisi dan status ke format frontend dan update status untuk kategori bahan
+    
+    const statusFrontendMapping = {
+      'tersedia': 'Tersedia',
+      'dipinjam': 'Dipinjam',
+      'perbaikan': 'Perbaikan',
+      'dihapuskan': 'Dihapuskan',
+      'habis': 'Habis'
+    };
+    
+    const kondisiFrontendMapping = {
+      'baik': 'Baik',
+      'rusak_ringan': 'Rusak Ringan', 
+      'rusak_berat': 'Rusak Berat'
+    };
+
+    // Update data inventaris dengan format frontend dan logika status
+    let inventarisFormatted = inventaris.map(item => {
+      const itemData = item.toJSON();
+      itemData.kondisi = kondisiFrontendMapping[itemData.kondisi] || itemData.kondisi;
+      itemData.status = statusFrontendMapping[itemData.status] || itemData.status;
+      
+      // Untuk kategori bahan, ubah status menjadi 'Habis' jika jumlah <= 0
+      if (itemData.kategori && itemData.kategori.tipe === 'bahan') {
+        if (itemData.jumlah <= 0 && itemData.status !== 'Dihapuskan') {
+          itemData.status = 'Habis';
+        }
+      }
+      
+      return itemData;
+    });
+    
+    // Filter berdasarkan status 'Habis' setelah status diupdate
+    if (req.query.status === 'Habis') {
+      inventarisFormatted = inventarisFormatted.filter(item => item.status === 'Habis');
+    }
     
     // Hitung total nilai inventaris (tidak menggunakan harga karena field dihapus)
     const totalNilai = 0;
@@ -75,26 +150,93 @@ exports.getLaporanInventaris = async (req, res) => {
       jumlahPerLokasi[lokasiNama] += item.jumlah || 0;
     });
     
-    // Hitung jumlah barang per kondisi
+    // Hitung jumlah barang yang sedang dipinjam berdasarkan DetailPeminjaman aktif
+    // Tapi hanya untuk barang yang sesuai dengan filter yang diterapkan
+    let peminjamanFilterCondition = { status: 'dipinjam' };
+    
+    const peminjamanAktif = await Peminjaman.findAll({
+      where: peminjamanFilterCondition,
+      include: [{
+        model: DetailPeminjaman,
+        as: 'detail_peminjaman',
+        include: [{ 
+          model: Barang, 
+          as: 'barang',
+          where: kondisi_pencarian, // Gunakan kondisi filter yang sama
+          include: [
+            { model: Kategori, as: 'kategori' },
+            { model: Lokasi, as: 'lokasi' },
+            sumberDanaInclude
+          ]
+        }]
+      }]
+    });
+
+    // Hitung jumlah barang per kondisi - termasuk barang yang sedang dipinjam
     const jumlahPerKondisi = {};
     inventaris.forEach(item => {
-      const kondisi = item.kondisi || 'Tidak ada kondisi';
+      const kondisi = item.kondisi || 'baik';
+      // Gunakan format database untuk konsistensi
       if (!jumlahPerKondisi[kondisi]) {
         jumlahPerKondisi[kondisi] = 0;
       }
       jumlahPerKondisi[kondisi] += item.jumlah || 0;
     });
     
+    // Tambahkan kondisi barang yang sedang dipinjam
+    peminjamanAktif.forEach(peminjaman => {
+      peminjaman.detail_peminjaman.forEach(detail => {
+        if (detail.barang) {
+          const kondisi = detail.barang.kondisi || 'baik';
+          if (!jumlahPerKondisi[kondisi]) {
+            jumlahPerKondisi[kondisi] = 0;
+          }
+          jumlahPerKondisi[kondisi] += detail.jumlah || 0;
+        }
+      });
+    });
+    
+    const barangDipinjam = peminjamanAktif.reduce((total, peminjaman) => {
+      return total + peminjaman.detail_peminjaman.reduce((subtotal, detail) => {
+        return subtotal + (detail.jumlah || 0);
+      }, 0);
+    }, 0);
+    
+    // Tambahkan jumlah barang yang sedang dipinjam ke perhitungan kategori dan lokasi saja
+    peminjamanAktif.forEach(peminjaman => {
+      peminjaman.detail_peminjaman.forEach(detail => {
+        if (detail.barang) {
+          // Tambahkan ke perhitungan kategori
+          const kategoriNama = detail.barang.kategori ? detail.barang.kategori.nama : 'Tidak ada kategori';
+          if (!jumlahPerKategori[kategoriNama]) {
+            jumlahPerKategori[kategoriNama] = 0;
+          }
+          jumlahPerKategori[kategoriNama] += detail.jumlah || 0;
+          
+          // Tambahkan ke perhitungan lokasi
+          const lokasiNama = detail.barang.lokasi ? detail.barang.lokasi.nama : 'Tidak ada lokasi';
+          if (!jumlahPerLokasi[lokasiNama]) {
+            jumlahPerLokasi[lokasiNama] = 0;
+          }
+          jumlahPerLokasi[lokasiNama] += detail.jumlah || 0;
+        }
+      });
+    });
+    
+    // Hitung total barang keseluruhan (tersedia + dipinjam) untuk konsistensi dengan dashboard
+    const totalBarangKeseluruhan = inventarisFormatted.reduce((total, item) => total + (item.jumlah || 0), 0) + barangDipinjam;
+
     res.status(200).json({
       sukses: true,
       data: {
-        inventaris,
+        inventaris: inventarisFormatted,
         ringkasan: {
-          total_barang: inventaris.reduce((total, item) => total + (item.jumlah || 0), 0),
+          total_barang: totalBarangKeseluruhan,
           total_nilai: totalNilai,
           jumlah_per_kategori: jumlahPerKategori,
           jumlah_per_lokasi: jumlahPerLokasi,
-          jumlah_per_kondisi: jumlahPerKondisi
+          jumlah_per_kondisi: jumlahPerKondisi,
+          barang_dipinjam: barangDipinjam
         }
       }
     });
