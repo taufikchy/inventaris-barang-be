@@ -284,7 +284,15 @@ exports.getLaporanPeminjaman = async (req, res) => {
       include: [
         { model: Barang, as: 'barang', include: [{ model: Kategori, as: 'kategori' }] },
         { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama', 'nama_pengguna', 'peran'] },
-        { model: DetailPeminjaman, as: 'detail_peminjaman' }
+        { 
+          model: DetailPeminjaman, 
+          as: 'detail_peminjaman',
+          include: [{
+            model: Barang,
+            as: 'barang',
+            include: [{ model: Kategori, as: 'kategori' }]
+          }]
+        }
       ],
       order: [['tanggal_pinjam', 'DESC']]
     });
