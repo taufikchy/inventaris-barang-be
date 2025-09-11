@@ -4,8 +4,31 @@ const { Op, Sequelize } = require('sequelize');
 // Mendapatkan data statistik untuk dashboard
 exports.getDashboardStats = async (req, res) => {
   try {
-    // Hitung total barang
-    const totalBarang = await Barang.sum('jumlah');
+    // Hitung total barang (kecualikan barang kategori bahan dengan stok 0)
+    const totalBarangAlat = await Barang.sum('jumlah', {
+      where: {
+        '$kategori.tipe$': 'alat'
+      },
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: []
+      }]
+    }) || 0;
+    
+    const totalBarangBahan = await Barang.sum('jumlah', {
+      where: {
+        '$kategori.tipe$': 'bahan',
+        status: { [Op.ne]: 'habis' }
+      },
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: []
+      }]
+    }) || 0;
+    
+    const totalBarang = totalBarangAlat + totalBarangBahan;
     
     // Hitung total kategori
     const totalKategori = await Kategori.count();
@@ -17,24 +40,87 @@ exports.getDashboardStats = async (req, res) => {
       }
     });
     
-    // Hitung barang berdasarkan kondisi
-    const barangBaik = await Barang.sum('jumlah', {
+    // Hitung barang berdasarkan kondisi (kecualikan barang kategori bahan dengan stok 0)
+    const barangBaikAlat = await Barang.sum('jumlah', {
       where: {
+        '$kategori.tipe$': 'alat',
         kondisi: 'baik'
-      }
+      },
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: []
+      }]
     }) || 0;
     
-    const barangRusakRingan = await Barang.sum('jumlah', {
+    const barangBaikBahan = await Barang.sum('jumlah', {
       where: {
+        '$kategori.tipe$': 'bahan',
+        kondisi: 'baik',
+        status: { [Op.ne]: 'habis' }
+      },
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: []
+      }]
+    }) || 0;
+    
+    const barangBaik = barangBaikAlat + barangBaikBahan;
+    
+    const barangRusakRinganAlat = await Barang.sum('jumlah', {
+      where: {
+        '$kategori.tipe$': 'alat',
         kondisi: 'rusak_ringan'
-      }
+      },
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: []
+      }]
     }) || 0;
     
-    const barangRusakBerat = await Barang.sum('jumlah', {
+    const barangRusakRinganBahan = await Barang.sum('jumlah', {
       where: {
-        kondisi: 'rusak_berat'
-      }
+        '$kategori.tipe$': 'bahan',
+        kondisi: 'rusak_ringan',
+        status: { [Op.ne]: 'habis' }
+      },
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: []
+      }]
     }) || 0;
+    
+    const barangRusakRingan = barangRusakRinganAlat + barangRusakRinganBahan;
+    
+    const barangRusakBeratAlat = await Barang.sum('jumlah', {
+      where: {
+        '$kategori.tipe$': 'alat',
+        kondisi: 'rusak_berat'
+      },
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: []
+      }]
+    }) || 0;
+    
+    const barangRusakBeratBahan = await Barang.sum('jumlah', {
+      where: {
+        '$kategori.tipe$': 'bahan',
+        kondisi: 'rusak_berat',
+        status: { [Op.ne]: 'habis' }
+      },
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: []
+      }]
+    }) || 0;
+    
+    const barangRusakBerat = barangRusakBeratAlat + barangRusakBeratBahan;
     
     // Total barang rusak (rusak ringan + rusak berat)
     const barangRusak = barangRusakRingan + barangRusakBerat;
