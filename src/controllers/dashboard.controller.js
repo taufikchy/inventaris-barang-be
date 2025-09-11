@@ -1,13 +1,23 @@
-const { Barang, Kategori, Peminjaman, Pengguna, Transaksi, Lokasi, HistoriAktivitas } = require('../models');
+const { Barang, Kategori, Peminjaman, Pengguna, Transaksi, Lokasi, HistoriAktivitas, DetailPeminjaman } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 
 // Mendapatkan data statistik untuk dashboard
 exports.getDashboardStats = async (req, res) => {
   try {
-    // Hitung total barang (kecualikan barang kategori bahan dengan stok 0)
-    const totalBarangAlat = await Barang.sum('jumlah', {
+    // Hitung total barang tersedia (kecualikan barang yang dihapuskan)
+    // Untuk bahan, jangan hitung yang stoknya 0
+    const totalBarangTersedia = await Barang.sum('jumlah', {
       where: {
-        '$kategori.tipe$': 'alat'
+        status: { [Op.ne]: 'dihapuskan' },
+        [Op.or]: [
+          // Untuk kategori alat, hitung semua
+          { '$kategori.tipe$': 'alat' },
+          // Untuk kategori bahan, hanya yang jumlahnya > 0
+          {
+            '$kategori.tipe$': 'bahan',
+            jumlah: { [Op.gt]: 0 }
+          }
+        ]
       },
       include: [{
         model: Kategori,
@@ -16,19 +26,32 @@ exports.getDashboardStats = async (req, res) => {
       }]
     }) || 0;
     
-    const totalBarangBahan = await Barang.sum('jumlah', {
+    // Hitung barang yang sedang dipinjam
+    const peminjamanAktif = await Peminjaman.findAll({
       where: {
-        '$kategori.tipe$': 'bahan',
-        status: { [Op.ne]: 'habis' }
+        status: 'dipinjam'
       },
       include: [{
-        model: Kategori,
-        as: 'kategori',
-        attributes: []
+        model: DetailPeminjaman,
+        as: 'detail_peminjaman',
+        include: [{ 
+          model: Barang, 
+          as: 'barang',
+          where: {
+            status: { [Op.ne]: 'dihapuskan' }
+          }
+        }]
       }]
-    }) || 0;
+    });
     
-    const totalBarang = totalBarangAlat + totalBarangBahan;
+    const barangDipinjam = peminjamanAktif.reduce((total, peminjaman) => {
+      return total + peminjaman.detail_peminjaman.reduce((subtotal, detail) => {
+        return subtotal + (detail.jumlah || 0);
+      }, 0);
+    }, 0);
+    
+    // Total barang keseluruhan (tersedia + dipinjam) untuk konsistensi dengan laporan
+    const totalBarang = totalBarangTersedia + barangDipinjam;
     
     // Hitung total kategori
     const totalKategori = await Kategori.count();
@@ -40,24 +63,21 @@ exports.getDashboardStats = async (req, res) => {
       }
     });
     
-    // Hitung barang berdasarkan kondisi (kecualikan barang kategori bahan dengan stok 0)
-    const barangBaikAlat = await Barang.sum('jumlah', {
+    // Hitung barang berdasarkan kondisi (kecualikan barang yang dihapuskan)
+    // Untuk bahan, jangan hitung yang stoknya 0
+    let barangBaik = await Barang.sum('jumlah', {
       where: {
-        '$kategori.tipe$': 'alat',
-        kondisi: 'baik'
-      },
-      include: [{
-        model: Kategori,
-        as: 'kategori',
-        attributes: []
-      }]
-    }) || 0;
-    
-    const barangBaikBahan = await Barang.sum('jumlah', {
-      where: {
-        '$kategori.tipe$': 'bahan',
         kondisi: 'baik',
-        status: { [Op.ne]: 'habis' }
+        status: { [Op.ne]: 'dihapuskan' },
+        [Op.or]: [
+          // Untuk kategori alat, hitung semua
+          { '$kategori.tipe$': 'alat' },
+          // Untuk kategori bahan, hanya yang jumlahnya > 0
+          {
+            '$kategori.tipe$': 'bahan',
+            jumlah: { [Op.gt]: 0 }
+          }
+        ]
       },
       include: [{
         model: Kategori,
@@ -66,25 +86,19 @@ exports.getDashboardStats = async (req, res) => {
       }]
     }) || 0;
     
-    const barangBaik = barangBaikAlat + barangBaikBahan;
-    
-    const barangRusakRinganAlat = await Barang.sum('jumlah', {
+    let barangRusakRingan = await Barang.sum('jumlah', {
       where: {
-        '$kategori.tipe$': 'alat',
-        kondisi: 'rusak_ringan'
-      },
-      include: [{
-        model: Kategori,
-        as: 'kategori',
-        attributes: []
-      }]
-    }) || 0;
-    
-    const barangRusakRinganBahan = await Barang.sum('jumlah', {
-      where: {
-        '$kategori.tipe$': 'bahan',
         kondisi: 'rusak_ringan',
-        status: { [Op.ne]: 'habis' }
+        status: { [Op.ne]: 'dihapuskan' },
+        [Op.or]: [
+          // Untuk kategori alat, hitung semua
+          { '$kategori.tipe$': 'alat' },
+          // Untuk kategori bahan, hanya yang jumlahnya > 0
+          {
+            '$kategori.tipe$': 'bahan',
+            jumlah: { [Op.gt]: 0 }
+          }
+        ]
       },
       include: [{
         model: Kategori,
@@ -93,25 +107,19 @@ exports.getDashboardStats = async (req, res) => {
       }]
     }) || 0;
     
-    const barangRusakRingan = barangRusakRinganAlat + barangRusakRinganBahan;
-    
-    const barangRusakBeratAlat = await Barang.sum('jumlah', {
+    let barangRusakBerat = await Barang.sum('jumlah', {
       where: {
-        '$kategori.tipe$': 'alat',
-        kondisi: 'rusak_berat'
-      },
-      include: [{
-        model: Kategori,
-        as: 'kategori',
-        attributes: []
-      }]
-    }) || 0;
-    
-    const barangRusakBeratBahan = await Barang.sum('jumlah', {
-      where: {
-        '$kategori.tipe$': 'bahan',
         kondisi: 'rusak_berat',
-        status: { [Op.ne]: 'habis' }
+        status: { [Op.ne]: 'dihapuskan' },
+        [Op.or]: [
+          // Untuk kategori alat, hitung semua
+          { '$kategori.tipe$': 'alat' },
+          // Untuk kategori bahan, hanya yang jumlahnya > 0
+          {
+            '$kategori.tipe$': 'bahan',
+            jumlah: { [Op.gt]: 0 }
+          }
+        ]
       },
       include: [{
         model: Kategori,
@@ -120,7 +128,8 @@ exports.getDashboardStats = async (req, res) => {
       }]
     }) || 0;
     
-    const barangRusakBerat = barangRusakBeratAlat + barangRusakBeratBahan;
+    // Catatan: Barang yang sedang dipinjam tidak perlu ditambahkan lagi
+    // karena stok sudah dikurangi dari database saat peminjaman disetujui
     
     // Total barang rusak (rusak ringan + rusak berat)
     const barangRusak = barangRusakRingan + barangRusakBerat;
@@ -189,11 +198,29 @@ exports.getDashboardStats = async (req, res) => {
     });
     
     // Dapatkan distribusi barang per kondisi (untuk chart bar)
+    // Untuk bahan, jangan hitung yang stoknya 0
     const distribusiPerKondisiRaw = await Barang.findAll({
       attributes: [
         'kondisi',
         [Sequelize.fn('SUM', Sequelize.col('jumlah')), 'jumlah']
       ],
+      where: {
+        status: { [Op.ne]: 'dihapuskan' },
+        [Op.or]: [
+          // Untuk kategori alat, hitung semua
+          { '$kategori.tipe$': 'alat' },
+          // Untuk kategori bahan, hanya yang jumlahnya > 0
+          {
+            '$kategori.tipe$': 'bahan',
+            jumlah: { [Op.gt]: 0 }
+          }
+        ]
+      },
+      include: [{
+        model: Kategori,
+        as: 'kategori',
+        attributes: []
+      }],
       group: ['kondisi'],
       raw: true
     });
@@ -207,15 +234,32 @@ exports.getDashboardStats = async (req, res) => {
     }));
     
     // Dapatkan distribusi barang per lokasi/ruangan (untuk chart pie)
+    // Untuk bahan, jangan hitung yang stoknya 0
     const barangPerLokasiRaw = await Barang.findAll({
       attributes: [
         [Sequelize.col('lokasi.id'), 'id'],
         [Sequelize.col('lokasi.nama'), 'nama'],
         [Sequelize.fn('SUM', Sequelize.col('jumlah')), 'jumlah']
       ],
+      where: {
+        status: { [Op.ne]: 'dihapuskan' },
+        [Op.or]: [
+          // Untuk kategori alat, hitung semua
+          { '$kategori.tipe$': 'alat' },
+          // Untuk kategori bahan, hanya yang jumlahnya > 0
+          {
+            '$kategori.tipe$': 'bahan',
+            jumlah: { [Op.gt]: 0 }
+          }
+        ]
+      },
       include: [{
         model: Lokasi,
         as: 'lokasi',
+        attributes: []
+      }, {
+        model: Kategori,
+        as: 'kategori',
         attributes: []
       }],
       group: ['lokasi.id', 'lokasi.nama'],
