@@ -117,8 +117,10 @@ exports.dapatkanSemuaBarang = async (req, res) => {
         barangGrouped[prefix].jumlah = itemData.jumlah;
         barangGrouped[prefix].unit_used = itemData.unit_used || 0;
       } else {
-        // Untuk kategori alat, jumlahkan semua unit
-        barangGrouped[prefix].jumlah += itemData.jumlah;
+        // Untuk kategori alat, jumlahkan hanya unit yang stoknya > 0
+        if (itemData.jumlah > 0) {
+          barangGrouped[prefix].jumlah += itemData.jumlah;
+        }
       }
     });
     
@@ -362,7 +364,17 @@ exports.dapatkanBarangById = async (req, res) => {
     // Tambahkan informasi grup dan unit terkait
     barangData.kode_grup = prefix;
     barangData.related_units = relatedUnitsData;
-    barangData.total_units = relatedUnitsData.length + 1; // Include current barang
+    
+    // Hitung total units berdasarkan kategori
+    if (barangData.kategori && barangData.kategori.tipe === 'alat') {
+      // Untuk kategori alat, hitung hanya unit yang stoknya > 0
+      const currentUnitCount = barangData.jumlah > 0 ? 1 : 0;
+      const relatedUnitCount = relatedUnitsData.filter(unit => unit.jumlah > 0).length;
+      barangData.total_units = currentUnitCount + relatedUnitCount;
+    } else {
+      // Untuk kategori bahan, hitung semua unit
+      barangData.total_units = relatedUnitsData.length + 1; // Include current barang
+    }
     
     res.status(200).json({
       sukses: true,

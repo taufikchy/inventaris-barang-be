@@ -26,32 +26,9 @@ exports.getDashboardStats = async (req, res) => {
       }]
     }) || 0;
     
-    // Hitung barang yang sedang dipinjam
-    const peminjamanAktif = await Peminjaman.findAll({
-      where: {
-        status: 'dipinjam'
-      },
-      include: [{
-        model: DetailPeminjaman,
-        as: 'detail_peminjaman',
-        include: [{ 
-          model: Barang, 
-          as: 'barang',
-          where: {
-            status: { [Op.ne]: 'dihapuskan' }
-          }
-        }]
-      }]
-    });
-    
-    const barangDipinjam = peminjamanAktif.reduce((total, peminjaman) => {
-      return total + peminjaman.detail_peminjaman.reduce((subtotal, detail) => {
-        return subtotal + (detail.jumlah || 0);
-      }, 0);
-    }, 0);
-    
-    // Total barang keseluruhan (tersedia + dipinjam) untuk konsistensi dengan laporan
-    const totalBarang = totalBarangTersedia + barangDipinjam;
+    // Total barang adalah jumlah yang tersedia saat ini
+    // Tidak perlu menambahkan barang dipinjam karena stok sudah dikurangi saat peminjaman disetujui
+    const totalBarang = totalBarangTersedia;
     
     // Hitung total kategori
     const totalKategori = await Kategori.count();
@@ -180,8 +157,30 @@ exports.getDashboardStats = async (req, res) => {
         // id_kepala_lab dihapus dari daftar atribut untuk menghindari error
       ],
       include: [
-        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama'] }
+        { model: Pengguna, as: 'pengguna', attributes: ['id', 'nama'] },
+        { 
+          model: DetailPeminjaman, 
+          as: 'detail_peminjaman',
+          attributes: ['jumlah'],
+          include: [{
+            model: Barang,
+            as: 'barang',
+            attributes: ['nama']
+          }]
+        }
       ]
+    });
+
+    // Tambahkan total barang dipinjam untuk setiap peminjaman
+    const recentPeminjamanWithTotal = recentPeminjaman.map(peminjaman => {
+      const totalBarangDipinjam = peminjaman.detail_peminjaman.reduce((total, detail) => {
+        return total + detail.jumlah;
+      }, 0);
+      
+      return {
+        ...peminjaman.toJSON(),
+        total_barang_dipinjam: totalBarangDipinjam
+      };
     });
     
     // Dapatkan aktivitas terbaru (5 terakhir)
@@ -287,7 +286,7 @@ exports.getDashboardStats = async (req, res) => {
           barangRusakBerat: barangRusakBerat,
           totalTransaksiHariIni
         },
-        recentPeminjaman,
+        recentPeminjaman: recentPeminjamanWithTotal,
         recentAktivitas,
         distribusiPerKondisi,
         barangPerLokasi,
