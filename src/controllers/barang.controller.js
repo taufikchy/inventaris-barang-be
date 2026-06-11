@@ -335,9 +335,50 @@ exports.dapatkanBarangById = async (req, res) => {
       sukses: true,
       data: barangData
     });
-    
+
   } catch (error) {
     console.error('Kesalahan mendapatkan barang by ID:', error);
+    res.status(500).json({
+      sukses: false,
+      pesan: 'Terjadi kesalahan pada server.'
+    });
+  }
+};
+
+// Mencari barang berdasarkan nama untuk cek duplikat
+exports.cariBarangByNama = async (req, res) => {
+  try {
+    const { nama } = req.query;
+
+    if (!nama) {
+      return res.status(400).json({
+        sukses: false,
+        pesan: 'Nama barang harus diisi.'
+      });
+    }
+
+    // Cari barang dengan nama yang mirip (case insensitive)
+    const barangDuplikat = await Barang.findAll({
+      where: {
+        nama: {
+          [Op.like]: `%${nama}%`
+        },
+        status: { [Op.ne]: 'dihapuskan' }
+      },
+      include: [
+        { model: Kategori, as: 'kategori', attributes: ['id', 'nama', 'tipe'] },
+        { model: Lokasi, as: 'lokasi', attributes: ['id', 'nama'] }
+      ],
+      order: [['kode', 'ASC']]
+    });
+
+    res.status(200).json({
+      sukses: true,
+      data: barangDuplikat
+    });
+
+  } catch (error) {
+    console.error('Kesalahan mencari barang:', error);
     res.status(500).json({
       sukses: false,
       pesan: 'Terjadi kesalahan pada server.'

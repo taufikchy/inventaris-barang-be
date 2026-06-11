@@ -53,6 +53,9 @@ router.get('/', semuaPengguna, barangController.dapatkanSemuaBarang);
 // Rute untuk mendapatkan semua barang untuk dropdown (tanpa pagination) (semua pengguna bisa melihat)
 router.get('/dropdown', semuaPengguna, barangController.dapatkanSemuaBarangDropdown);
 
+// Rute untuk mencari barang berdasarkan nama (untuk cek duplikat) (hanya Admin, Toolman, Kepala Lab)
+router.get('/search-by-name', adminToolmanAtauKepalaLab, barangController.cariBarangByNama);
+
 // Rute untuk mendapatkan barang berdasarkan ID (semua pengguna bisa melihat)
 router.get('/:id', semuaPengguna, barangController.dapatkanBarangById);
 
