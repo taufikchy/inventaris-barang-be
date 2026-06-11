@@ -4,6 +4,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const sequelize = require('./config/basisdata');
 const ArchiveScheduler = require('./schedulers/archiveScheduler');
+const path = require('path');
 
 // Import rute-rute
 const ruteAuth = require('./routes/auth.routes');
@@ -36,6 +37,11 @@ app.use(morgan('dev'));
 // Serve static files from the public directory
 app.use(express.static('public'));
 console.log('Serving static files from:', require('path').resolve('public'));
+
+// Serve frontend build (production mode)
+const frontendBuildPath = path.join(__dirname, '../inventaris-barang-fe/dist');
+app.use(express.static(frontendBuildPath));
+console.log('Serving frontend build from:', frontendBuildPath);
 
 // Koneksi database
 sequelize.authenticate()
@@ -80,7 +86,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Mulai server
-app.listen(PORT, () => {
+// Mulai server - 0.0.0.0 untuk akses LAN
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server berjalan pada port ${PORT}`);
-}); // Updated for status fix
+  console.log(`Akses lokal:  http://localhost:${PORT}`);
+  console.log(`Akses LAN:    http://<IP-KOMPUTER>:${PORT}`);
+});
