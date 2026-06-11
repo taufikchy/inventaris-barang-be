@@ -178,13 +178,14 @@ exports.perbaruiPengguna = async (req, res) => {
     }
     
     // Perbarui data pengguna
-    if (nama) pengguna.nama = nama;
-    if (nama_pengguna) pengguna.nama_pengguna = nama_pengguna;
-    if (peran) pengguna.peran = peran;
-    if (aktif !== undefined) pengguna.aktif = aktif;
-    if (kata_sandi) pengguna.kata_sandi = kata_sandi; // Update password if provided
+    const dataUpdate = {};
+    if (nama) dataUpdate.nama = nama;
+    if (nama_pengguna) dataUpdate.nama_pengguna = nama_pengguna;
+    if (peran) dataUpdate.peran = peran;
+    if (aktif !== undefined) dataUpdate.aktif = aktif;
+    if (kata_sandi) dataUpdate.kata_sandi = kata_sandi;
     
-    await pengguna.save();
+    await pengguna.update(dataUpdate);
     
     // Hapus kata sandi dari respons
     const respons = pengguna.toJSON();
@@ -235,8 +236,7 @@ exports.resetKataSandi = async (req, res) => {
     }
     
     // Reset kata sandi
-    pengguna.kata_sandi = kata_sandi_baru;
-    await pengguna.save();
+    await pengguna.update({ kata_sandi: kata_sandi_baru });
     
     res.status(200).json({
       sukses: true,
